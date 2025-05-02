@@ -10,7 +10,7 @@ namespace Librow.API.Controllers;
 [Route("api/books")]
 [ApiController]
 
-//[RoleAuthorize]
+[RoleAuthorize]
 public class BookController : ApiControllerBase
 {
     private readonly IBookService _bookService;

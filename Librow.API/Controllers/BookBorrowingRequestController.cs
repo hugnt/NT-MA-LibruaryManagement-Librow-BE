@@ -12,7 +12,7 @@ namespace Librow.API.Controllers;
 [Route("api/book-borrowing-requests")]
 [ApiController]
 
-//[RoleAuthorize]
+[RoleAuthorize]
 public class BookBorrowingRequestController : ApiControllerBase
 {
     private readonly IBookBorrowingRequestService _bookBorrowingRequestService;
@@ -26,6 +26,20 @@ public class BookBorrowingRequestController : ApiControllerBase
     public async Task<IActionResult> GetAll([FromQuery] BorrowingRequestFilter filter)
     {
         var res = await _bookBorrowingRequestService.GetAll(filter);
+        return ApiResponse(res);
+    }
+
+    [HttpGet("user-request-info")]
+    public async Task<IActionResult> GetUserRequestInfo([FromQuery] RequestFilter filter)
+    {
+        var res = await _bookBorrowingRequestService.GetUserRequestInfo(filter);
+        return ApiResponse(res);
+    }
+
+    [HttpGet("all-borrowing-books")]
+    public async Task<IActionResult> GetAllBorrowingBooks([FromQuery] FilterRequest filter)
+    {
+        var res = await _bookBorrowingRequestService.GetAllBorrowingBooks(filter);
         return ApiResponse(res);
     }
 
@@ -43,7 +57,8 @@ public class BookBorrowingRequestController : ApiControllerBase
         return ApiResponse(res);
     }
 
-    [HttpPatch("{id}")]
+    [RoleAuthorize(AuthRole.Admin)]
+    [HttpPatch("update-status/{id}")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest updatedStatusRequest)
     {
         var res = await _bookBorrowingRequestService.UpdateStatus(id, updatedStatusRequest);
@@ -57,7 +72,7 @@ public class BookBorrowingRequestController : ApiControllerBase
         return ApiResponse(res);
     }
 
-
+    [RoleAuthorize(AuthRole.Admin)]
     [HttpPatch("details/{id}/borrowing-status")]
     public async Task<IActionResult> UpdateBorrowingBookStatus(Guid id, [FromBody] UpdateBorrowingStatusRequest updateBorrowingStatus)
     {

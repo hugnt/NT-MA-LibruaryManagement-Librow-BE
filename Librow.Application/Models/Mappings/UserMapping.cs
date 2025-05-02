@@ -1,4 +1,5 @@
-﻿using Librow.Application.Models.Requests;
+﻿using Librow.Application.Helpers;
+using Librow.Application.Models.Requests;
 using Librow.Application.Models.Responses;
 using Librow.Core.Entities;
 using System;
@@ -15,7 +16,17 @@ public static class UserMapping
         Fullname = registerRequest.Fullname,
         Email = registerRequest.Email,
         Username = registerRequest.Username.ToLower().Trim(),
+        Role = registerRequest.Role,
     };
+
+    public static void MappingFieldFrom(this User trackingEntity, UserUpdateRequest updatedEntity)
+    {
+        trackingEntity.Fullname = updatedEntity.Fullname;
+        trackingEntity.Email = updatedEntity.Email;
+        trackingEntity.Username = updatedEntity.Username;
+        trackingEntity.Role = updatedEntity.Role;
+    }
+
 
     public static UserResponse ToResponse(this User user) => new()
     {
@@ -23,6 +34,7 @@ public static class UserMapping
         Username = user.Username,
         Email = user.Email,
         Fullname = user.Fullname,
-        Role = user.Role
+        Role = user.Role,
+        RoleName = RoleHelper.GetRoleName(user.Role),
     };
 }

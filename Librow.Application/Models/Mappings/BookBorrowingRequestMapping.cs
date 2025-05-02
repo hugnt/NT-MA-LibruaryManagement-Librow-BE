@@ -16,8 +16,9 @@ public static class BookBorrowingRequestMapping
     {
         Id = bookBorrowRequest.Id,
         RequestorName = bookBorrowRequest.Requestor.Fullname,
-        ApproverName = bookBorrowRequest.Approver.Fullname,
+        ApproverName = bookBorrowRequest.Approver?.Fullname??"No approver",
         StatusName = StatusHelper.GetStatusName(bookBorrowRequest.Status),
+        Status = bookBorrowRequest.Status,
         CreatedAt = bookBorrowRequest.CreatedAt,
         UpdatedAt = bookBorrowRequest.UpdatedAt,
     };
@@ -26,8 +27,9 @@ public static class BookBorrowingRequestMapping
     {
         Id = bookBorrowRequest.Id,
         RequestorName = bookBorrowRequest.Requestor.Fullname,
-        ApproverName = bookBorrowRequest.Approver.Fullname,
+        ApproverName = bookBorrowRequest?.Approver?.Fullname??"No approver yet",
         StatusName = StatusHelper.GetStatusName(bookBorrowRequest.Status),
+        Status = bookBorrowRequest.Status,
         CreatedAt = bookBorrowRequest.CreatedAt,
         UpdatedAt = bookBorrowRequest.UpdatedAt,
         Details = bookBorrowRequest.BookBorrowingRequestDetails.Select(x => new BorrowingDetailsResponse()
@@ -35,9 +37,24 @@ public static class BookBorrowingRequestMapping
             Id = x.Id,
             BookId = x.BookId,
             BookName = x.Book.Title,
+            Author = x.Book.Author,
             DueDate = x.DueDate,  
             ExtendedDueDate = x.ExtendedDueDate
         }).ToList()
     };
+
+    public static BorrowingBookResponse ToResponse(this BookBorrowingRequestDetails bookBorrowRequestDetails) => new()
+    {
+        RequestId = bookBorrowRequestDetails.RequestId,
+        RequestDetailsId = bookBorrowRequestDetails.Id,
+        BookId = bookBorrowRequestDetails.BookId,
+        Status = bookBorrowRequestDetails.Status,
+        BookName = bookBorrowRequestDetails.Book.Title,
+        Author = bookBorrowRequestDetails.Book.Author,
+        DueDate = bookBorrowRequestDetails.DueDate,
+        ExtendedDueDate = bookBorrowRequestDetails.ExtendedDueDate,
+    };
+
+
 }
 

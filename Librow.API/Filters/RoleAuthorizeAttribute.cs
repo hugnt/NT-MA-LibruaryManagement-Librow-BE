@@ -12,17 +12,22 @@ namespace Librow.API.Filters;
 public class RoleAuthorizeAttribute : Attribute, IAuthorizationFilter
 {
     private readonly AuthRole _requiredRole;
+
     public RoleAuthorizeAttribute(AuthRole roleSet = AuthRole.Customer)
     {
         _requiredRole = roleSet;
     }
+
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        if (context.ActionDescriptor.EndpointMetadata.OfType<AllowAnonymousAttribute>().Any()) return;
+        if (context.ActionDescriptor.EndpointMetadata.OfType<AllowAnonymousAttribute>().Any())
+        {
+            return;
+        }
 
         if (context.HttpContext.Items[ClaimType.Role] is not AuthRole roleReceived)
         {
-            context.Result = new JsonResult(Result.Error(HttpStatusCode.Unauthorized, "Token invalid or you dont have permission to do this"))
+            context.Result = new JsonResult(Result.Error(HttpStatusCode.Unauthorized, "Token invalid or missing"))
             {
                 StatusCode = StatusCodes.Status401Unauthorized
             };
@@ -31,10 +36,11 @@ public class RoleAuthorizeAttribute : Attribute, IAuthorizationFilter
 
         if (roleReceived != AuthRole.Admin && roleReceived != _requiredRole)
         {
-            context.Result = new JsonResult(Result.Error(HttpStatusCode.Unauthorized, "Token invalid or you dont have permission to do this"))
+            context.Result = new JsonResult(Result.Error(HttpStatusCode.Forbidden, "You do not have permission to perform this action"))
             {
-                StatusCode = StatusCodes.Status401Unauthorized
+                StatusCode = StatusCodes.Status403Forbidden
             };
+            return;
         }
     }
 }

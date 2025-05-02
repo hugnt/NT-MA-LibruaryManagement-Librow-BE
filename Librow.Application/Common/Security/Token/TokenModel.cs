@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Librow.Application.Common.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -25,9 +26,9 @@ public class TokenValidationModel<T>
     public bool IsSuccess { get; set; }
     public T? AttachData { get; set; }
     public string ErrorMessage { get; set; } = "";
-
+    public TokenErrorCode ErrorCode { get; set; }
+    public static TokenValidationModel<T> ErrorWithCode(TokenErrorCode errorCode,string message) => new() { IsSuccess = false, ErrorCode = errorCode, ErrorMessage = message };
     public static TokenValidationModel<T> Error(string message) => new() { IsSuccess = false, ErrorMessage = message };
     public static TokenValidationModel<T> Success(T attachData) => new() { IsSuccess = true, AttachData = attachData };
     public static TokenValidationModel<T> Success() => new() { IsSuccess = true };
 }
-

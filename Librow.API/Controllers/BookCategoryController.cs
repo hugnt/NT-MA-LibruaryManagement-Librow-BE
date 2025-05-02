@@ -10,7 +10,7 @@ namespace Librow.API.Controllers;
 [Route("api/book-categories")]
 [ApiController]
 
-//[RoleAuthorize]
+[RoleAuthorize]
 public class BookCategoryController : ApiControllerBase
 {
     private readonly IBookCategoryService _bookCategoryService;

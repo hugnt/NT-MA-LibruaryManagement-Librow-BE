@@ -53,7 +53,7 @@ public class BookCategoryService : IBookCategoryService
         {
             return Result.ErrorValidation(validateResult);
         } 
-        if(!await _bookCategoryRepository.AnyAsync(x=> x.Name == newBookCategory.Name.Trim()))
+        if(await _bookCategoryRepository.AnyAsync(x=> x.Name == newBookCategory.Name.Trim()))
         {
             return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(newBookCategory.Name, "Book Category"));
         }
@@ -61,7 +61,7 @@ public class BookCategoryService : IBookCategoryService
         var bookCategoryEntity = newBookCategory.ToEntity();
 
         bookCategoryEntity.CreatedAt = bookCategoryEntity.UpdatedAt = DateTime.Now;
-        bookCategoryEntity.CreatedBy = bookCategoryEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        bookCategoryEntity.CreatedBy = bookCategoryEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
 
         _bookCategoryRepository.Add(bookCategoryEntity);
         await _bookCategoryRepository.SaveChangesAsync();
@@ -85,7 +85,7 @@ public class BookCategoryService : IBookCategoryService
         selectedEntity.MappingFieldFrom(updatedBookCategory);
 
         selectedEntity.UpdatedAt = DateTime.Now;
-        selectedEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
 
         _bookCategoryRepository.Update(selectedEntity);
         await _bookCategoryRepository.SaveChangesAsync();

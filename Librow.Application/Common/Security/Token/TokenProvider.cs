@@ -1,4 +1,5 @@
-﻿using Librow.Application.Common.Messages;
+﻿using Librow.Application.Common.Enums;
+using Librow.Application.Common.Messages;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -6,7 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace Librow.Application.Common.Security.Token;
-public class TokenProvider
+public static class TokenProvider
 {
     private static Int32 _accessTokenExprirationInMinutes = 1;
     private static string _secretKey = "5d2cb8e11157b7dbc8f7a4cb28734f4e7b265863ea9a7bfda9e58f12078e7c58";
@@ -84,15 +85,15 @@ public class TokenProvider
         }
         catch (SecurityTokenExpiredException)
         {
-            return TokenValidationModel<ClaimsPrincipal>.Error(TokenMessage.TokenExpired);
+            return TokenValidationModel<ClaimsPrincipal>.ErrorWithCode(TokenErrorCode.TokenExpired,TokenMessage.TokenExpired);
         }
         catch (SecurityTokenSignatureKeyNotFoundException)
         {
-            return TokenValidationModel<ClaimsPrincipal>.Error(TokenMessage.InvalidSignatureKey);
+            return TokenValidationModel<ClaimsPrincipal>.ErrorWithCode(TokenErrorCode.TokenSignatureKeyNotFound, TokenMessage.InvalidSignatureKey);
         }
         catch (SecurityTokenInvalidSignatureException)
         {
-            return TokenValidationModel<ClaimsPrincipal>.Error(TokenMessage.InvalidSignature);
+            return TokenValidationModel<ClaimsPrincipal>.ErrorWithCode(TokenErrorCode.TokenInvalidSignature, TokenMessage.InvalidSignature);
         }
         catch (SecurityTokenException ex)
         {
@@ -103,7 +104,17 @@ public class TokenProvider
             return TokenValidationModel<ClaimsPrincipal>.Error(TokenMessage.UnexpectedError);
         }
     }
- 
+
+    public static ClaimsPrincipal GetPrincipalFromToken(string token)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var jwtToken = tokenHandler.ReadJwtToken(token);
+
+        var identity = new ClaimsIdentity(jwtToken.Claims);
+        return new ClaimsPrincipal(identity);
+    }
+
+
     private static string GenerateRefeshToken()
     {
         var random = new byte[32];

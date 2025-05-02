@@ -12,7 +12,6 @@ public class BorrowingRequestFilter : FilterRequest
 {
     public RequestStatus Status { get; set; }
 }
-
 public class BorrowingDetailsRequest
 {
     public Guid BookId { get; set; }
@@ -23,7 +22,6 @@ public class BorrowingRequest
     public List<BorrowingDetailsRequest> Details { get; set; }
 
 }
-
 public class ExtendBorrowingRequest
 {
     public DateTime ExtendedDueDate { get; set; }
@@ -34,9 +32,14 @@ public class UpdateStatusRequest
     public RequestStatus Status { get; set; }
 
 }
-
 public class UpdateBorrowingStatusRequest
 {
     public BorrowingStatus Status { get; set; }
 
+}
+
+public class RequestFilter
+{
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
 }

@@ -20,5 +20,8 @@ public static class DateTimeHelper
         return date1.Date == date2.Date && date1.Month == date2.Month && date1.Year == date2.Year;
     }
 
-
+    public static bool IsDateBetween(this DateTime thisDate, DateTime startDate, DateTime endDate)
+    {
+        return thisDate >= startDate && thisDate <= endDate;
+    }
 }

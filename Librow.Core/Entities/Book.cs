@@ -11,8 +11,8 @@ public class Book : Entity, IAuditableEntity, IConcurrencyEntity
     public string Title { get; set; }
     public Guid CategoryId { get; set; }
     public string Author { get; set; }
-    public int Quantity { get; set; }
-    public int Available { get; set; }
+    public int Quantity { get; set; } 
+    public int Available { get; set; } 
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
     public DateTime CreatedAt { get; set; }

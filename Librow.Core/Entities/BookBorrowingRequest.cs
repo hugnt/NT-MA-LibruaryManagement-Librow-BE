@@ -10,7 +10,7 @@ namespace Librow.Core.Entities;
 public class BookBorrowingRequest : Entity, IAuditableEntity
 {
     public Guid RequestorId { get; set; }
-    public Guid ApproverId { get; set; }
+    public Guid? ApproverId { get; set; }
     public RequestStatus Status { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }

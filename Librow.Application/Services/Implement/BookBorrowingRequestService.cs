@@ -13,6 +13,7 @@ using Librow.Infrastructure.Repositories.Base;
 using Librow.Infrastructure.Repositories.Implement;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using System.Net;
 
 namespace Librow.Application.Services.Implement;
@@ -38,11 +39,58 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
 
     public async Task<Result> GetAll(BorrowingRequestFilter filter)
     {
+        var context = _httpContextAccessor.HttpContext;
+        var role = ClaimHelper.GetClaimValue<Role>(context, ClaimType.Role);
+        var userId = ClaimHelper.GetClaimValue<Guid>(context, ClaimType.Id);
+
+        Expression<Func<BookBorrowingRequest, bool>> predicate = role == Role.Admin
+                                                            ? x => x.Status == filter.Status
+                                                            : x => x.Status == filter.Status && x.RequestorId == userId;
+
         var res = await _bookBorrowingRequestRepository.GetByFilterAsync(
-                                                            filter.PageSize,filter.PageNumber, 
-                                                            predicate: x => x.Status == filter.Status,           
-                                                            selectQuery: x => x.ToResponse());
+            filter.PageSize,
+            filter.PageNumber,
+            predicate: predicate,
+            selectQuery: x => x.ToResponse(),
+            navigationProperties: [x => x.Requestor, x => x.Approver]
+        );
+
         return FilterResult<List<BorrowingRequestResponse>>.Success(res.Data.ToList(), res.TotalCount);
+    }
+
+    public async Task<Result> GetAllBorrowingBooks(FilterRequest filter)
+    {
+        var context = _httpContextAccessor.HttpContext;
+        var role = ClaimHelper.GetClaimValue<Role>(context, ClaimType.Role);
+        var userId = ClaimHelper.GetClaimValue<Guid>(context, ClaimType.Id);
+
+        Expression<Func<BookBorrowingRequestDetails, bool>> predicate = role == Role.Admin
+                                                            ? x => x.Status == BorrowingStatus.Borrowing
+                                                            : x => x.Status == BorrowingStatus.Borrowing && x.BookBorrowingRequest.RequestorId == userId;
+
+        var res = await _bookBorrowingRequestDetailsRepository.GetByFilterAsync(
+            filter.PageSize,
+            filter.PageNumber,
+            predicate: predicate,
+            selectQuery: x => x.ToResponse(),
+            navigationProperties: [x => x.Book, x => x.BookBorrowingRequest]
+        );
+
+        return FilterResult<List<BorrowingBookResponse>>.Success(res.Data.ToList(), res.TotalCount);
+    }
+
+    public async Task<Result> GetUserRequestInfo(RequestFilter requestFilter)
+    {
+        var context = _httpContextAccessor.HttpContext;
+        var userId = ClaimHelper.GetClaimValue<Guid>(context, ClaimType.Id);
+        var totalRequest = await _bookBorrowingRequestRepository.CountAsync(x => x.RequestorId == userId &&
+                                                                             x.CreatedAt >= requestFilter.StartDate &&
+                                                                             x.CreatedAt <= requestFilter.EndDate);
+        return Result<RequestFilterResponse>.SuccessWithBody(new RequestFilterResponse()
+        {
+            TotalRequest = totalRequest,
+            MaxRequestPerMonth = MAX_REQUEST_PER_MONTH
+        });
     }
 
     public async Task<Result> GetById(Guid id)
@@ -61,7 +109,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         {
             return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectCanNotBeNullOrEmpty("Request "));
         }
-        var requestorId = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        var requestorId = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
         //check if reach limit (3) of request in month
         if (await _bookBorrowingRequestRepository.CountAsync(x => x.RequestorId == requestorId
                                                                 && x.CreatedAt.Month == DateTime.Now.Month 
@@ -84,11 +132,12 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         }
 
         // Check book existed & avalable
-        if (await _bookRepository.CountAsync(x => newRequest.Details.Select(b => b.BookId).Contains(x.Id) && x.Available > 0) == newRequest.Details.Count)
+        var listBookIds = newRequest.Details.Select(b => b.BookId);
+        if (await _bookRepository.CountAsync(x => listBookIds.Contains(x.Id) && x.Available > 0) != newRequest.Details.Count)
         {
             return Result.Error(HttpStatusCode.NotFound, BorrowingRequestMessage.ErrorBookIsNotAvailable);
         }
-
+ 
         try
         {
             await _bookBorrowingRequestRepository.BeginTransactionAsync();
@@ -110,7 +159,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
                     BookId = detail.BookId,
                     DueDate = detail.DueDate,
                     ExtendedDueDate = detail.DueDate,
-                    Status = BorrowingStatus.Borrowing
+                    Status = BorrowingStatus.None
                 });
             }
             
@@ -121,7 +170,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
                                                     updateExpression: setters => setters.SetProperty(b => b.Available, b => b.Available - 1));
 
             await _bookBorrowingRequestRepository.SaveChangesAsync();
-            await _bookRepository.CommitAsync();
+            await _bookBorrowingRequestRepository.CommitAsync();
 
         }
         catch (DbUpdateConcurrencyException)
@@ -140,17 +189,41 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
 
     public async Task<Result> UpdateStatus(Guid id, UpdateStatusRequest updatedStatusRequest)
     {
-        var selectedEntity = await _bookBorrowingRequestRepository.FirstOrDefaultAsync(x => x.Id == id);
+        var selectedEntity = await _bookBorrowingRequestRepository.FirstOrDefaultAsync(x => x.Id == id && x.Status == RequestStatus.Waiting);
         if (selectedEntity == null)
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Borrowing Request "));
         }
         selectedEntity.Status = updatedStatusRequest.Status;
         selectedEntity.UpdatedAt = DateTime.Now;
-        selectedEntity.ApproverId = selectedEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id); ;
+        selectedEntity.ApproverId = selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id); ;
 
-        _bookBorrowingRequestRepository.Update(selectedEntity);
-        await _bookBorrowingRequestRepository.SaveChangesAsync();
+        try
+        {
+            await _bookBorrowingRequestRepository.BeginTransactionAsync();
+            if (updatedStatusRequest.Status == RequestStatus.Rejected)
+            {
+                // increase number of available book
+                var allBooksOfRequest = await _bookBorrowingRequestDetailsRepository.GetAllAsync(predicate: x => x.RequestId == id, selectQuery: x => x.BookId);
+                await _bookRepository.ExecuteUpdateAsync(predicate: x => allBooksOfRequest.Contains(x.Id),
+                                                        updateExpression: setters => setters.SetProperty(b => b.Available, b => b.Available + 1));
+            }
+            else if (updatedStatusRequest.Status == RequestStatus.Approved)
+            {
+                await _bookBorrowingRequestDetailsRepository.ExecuteUpdateAsync(predicate: x => x.RequestId == id,
+                                                            updateExpression: setters => setters.SetProperty(b => b.Status, b => BorrowingStatus.Borrowing));
+            }
+            _bookBorrowingRequestRepository.Update(selectedEntity);
+            await _bookBorrowingRequestRepository.SaveChangesAsync();
+            await _bookBorrowingRequestRepository.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await _bookBorrowingRequestRepository.RollbackAsync();
+            return Result.Error(HttpStatusCode.InternalServerError, ErrorMessage.ServerError());
+        }
+      
+
         return Result.SuccessNoContent();
     }
 
@@ -159,7 +232,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         var selectedEntity = await _bookBorrowingRequestDetailsRepository.FirstOrDefaultAsync(x => x.Id == id);
         if (selectedEntity == null) 
         {
-            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Borrowing Request of boo"));
+            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Borrowing Request of book"));
         }
         if(selectedEntity.DueDate.Date < selectedEntity.ExtendedDueDate.Date)
         {

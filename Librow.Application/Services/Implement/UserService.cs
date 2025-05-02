@@ -1,13 +1,20 @@
-﻿using FluentValidation;
+﻿using Azure.Core;
+using FluentValidation;
+using Librow.Application.Common.Enums;
 using Librow.Application.Common.Messages;
 using Librow.Application.Common.Security;
 using Librow.Application.Common.Security.Token;
+using Librow.Application.Helpers;
 using Librow.Application.Models;
 using Librow.Application.Models.Mappings;
 using Librow.Application.Models.Requests;
 using Librow.Application.Models.Responses;
+using Librow.Application.Validators;
 using Librow.Core.Entities;
+using Librow.Core.Enums;
 using Librow.Infrastructure.Repositories.Base;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
@@ -20,15 +27,22 @@ public class UserService : IUserService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<RefreshToken> _refreshTokenRepository;
     private readonly IValidator<RegisterRequest> _registerValidator;
+    private readonly IValidator<UserUpdateRequest> _userUpdateValidator;
     private readonly IValidator<LoginRequest> _loginValidator;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository)
+    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository, IHttpContextAccessor httpContextAccessor, IValidator<UserUpdateRequest> userUpdateValidator)
     {
         _userRepository = userRepository;
         _registerValidator = registerValidator;
         _loginValidator = loginValidator;
         _refreshTokenRepository = refreshTokenRepository;
+        _httpContextAccessor = httpContextAccessor;
+        _userUpdateValidator = userUpdateValidator;
     }
+
+
+    //LOGIN
     public async Task<Result> Login(LoginRequest loginRequest)
     {
         var validateResult = _loginValidator.Validate(loginRequest);
@@ -36,7 +50,7 @@ public class UserService : IUserService
         {
             return Result.ErrorValidation(validateResult);
         }
-        var selectedAccount = await _userRepository.FirstOrDefaultAsync(x => x.Username == loginRequest.Username);
+        var selectedAccount = await _userRepository.FirstOrDefaultAsync(x => x.Username == loginRequest.Username && !x.IsDeleted);
         if (selectedAccount == null)
         {
             return Result.Error(HttpStatusCode.NotFound ,ErrorMessage.ObjectNotFound(loginRequest.Username,"User"));
@@ -71,48 +85,18 @@ public class UserService : IUserService
     }
     public async Task<Result> Register(RegisterRequest registerRequest)
     {
-        var validateResult = _registerValidator.Validate(registerRequest);
-        if (!validateResult.IsValid)
-        {
-            return Result.ErrorValidation(validateResult);
-        }
-        if(await _userRepository.AnyAsync(x => x.Username == registerRequest.Username.Trim().ToLower()))
-        {
-            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(registerRequest.Username, "User"));
-        }
-
-        var userEntity = registerRequest.ToEntity();
-        userEntity.PasswordHash = registerRequest.Password.Hash();
-
-         _userRepository.Add(userEntity);
-        await _userRepository.SaveChangesAsync();
-
-        var claims = GetClaims(userEntity);
-        var token = TokenProvider.GenerateTokens(claims);
-
-        var loginResponse = new LoginResponse()
-        {
-            AccessToken = token.AccessToken,
-            RefreshToken = token.RefreshToken,
-            User = userEntity.ToResponse()
-        };
-
-        return Result<LoginResponse>.SuccessWithBody(loginResponse);
+        registerRequest.Role = Role.Customer;
+        return await Add(registerRequest);
     }
-
-    public async Task<Result> ExtendSession(ExtendSessionRequest reLoginRequest)
+    public async Task<Result> Logout(LogoutRequest logoutRequest)
     {
-        var validateAccessToken = TokenProvider.ValidateAccessToken(reLoginRequest.AccessToken);
-        if (!validateAccessToken.IsSuccess)
-        {
-            return Result.Error(HttpStatusCode.Unauthorized, validateAccessToken.ErrorMessage);
-        }
-
-        var jwtId = validateAccessToken.AttachData!.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti)!;
-        var validateRefreshToken = await ValidateRefreshToken(new TokenModel(jwtId.Value, reLoginRequest.AccessToken, reLoginRequest.RefreshToken));
+        var accessToken = _httpContextAccessor?.HttpContext?.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        var claimsFromToken = TokenProvider.GetPrincipalFromToken(accessToken!).Claims;
+        var jwtId = claimsFromToken.ExtractClaimValue(JwtRegisteredClaimNames.Jti, Convert.ToString)!;
+        var validateRefreshToken = await ValidateRefreshToken(new TokenModel(jwtId, accessToken, logoutRequest.RefreshToken));
         if (!validateRefreshToken.IsSuccess)
         {
-            return Result.Error(HttpStatusCode.Unauthorized, validateAccessToken.ErrorMessage);
+            return Result.Error(HttpStatusCode.Unauthorized, validateRefreshToken.ErrorMessage);
         }
 
         //Update status of token 
@@ -121,22 +105,85 @@ public class UserService : IUserService
         selectedRefreshToken.IsUsed = true;
         _refreshTokenRepository.Update(selectedRefreshToken);
         await _refreshTokenRepository.SaveChangesAsync();
+        return Result.SuccessNoContent();
+    }
+    public async Task<Result> ExtendSession(ExtendSessionRequest extendSessionRequest)
+    {
+        var accessToken = _httpContextAccessor?.HttpContext?.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        if(accessToken == null)
+        {
+            return Result.Error(HttpStatusCode.Unauthorized, ErrorMessage.UserHasNoPermission);
+        }
+        var validateAccessToken = TokenProvider.ValidateAccessToken(accessToken);
+        if (validateAccessToken.IsSuccess)
+        {
+            return Result<TokenResponse>.SuccessWithBody(new()
+            {
+                AccessToken = accessToken,
+                RefreshToken = extendSessionRequest.RefreshToken,
+            });
+        }
+        if(validateAccessToken.ErrorCode != TokenErrorCode.TokenExpired)
+        {
+            return Result.Error(HttpStatusCode.Unauthorized, validateAccessToken.ErrorMessage);
+        }
+        var claimsFromToken = TokenProvider.GetPrincipalFromToken(accessToken).Claims;
+        var jwtId = claimsFromToken.ExtractClaimValue(JwtRegisteredClaimNames.Jti, Convert.ToString)!;
+        var validateRefreshToken = await ValidateRefreshToken(new TokenModel(jwtId, accessToken, extendSessionRequest.RefreshToken));
+        if (!validateRefreshToken.IsSuccess)
+        {
+            return Result.Error(HttpStatusCode.Unauthorized, validateRefreshToken.ErrorMessage);
+        }
+
+        //Update status of token 
+        var selectedRefreshToken = validateRefreshToken.AttachData!;
+        selectedRefreshToken.IsRevoked = true;
+        selectedRefreshToken.IsUsed = true;
+        _refreshTokenRepository.Update(selectedRefreshToken);
 
         //Create new token
-        var userName = validateAccessToken.AttachData!.Claims.FirstOrDefault(x => x.Type == ClaimType.Username)!;
-        var selectedUser = await _userRepository.FirstOrDefaultAsync(x => x.Username == userName.Value);
-        if(selectedUser == null) return Result.Error(HttpStatusCode.Unauthorized, ErrorMessage.ObjectNotFound(userName,"User"));
-        var claims = GetClaims(selectedUser);
+        var userId = claimsFromToken.ExtractClaimValue(ClaimType.Id, Guid.Parse)!;
+        var userName = claimsFromToken.ExtractClaimValue(ClaimType.Username, Convert.ToString)!;
+        var role = claimsFromToken.ExtractClaimValue(ClaimType.Role, Enum.Parse<Role>)!;
+        var userClaims = new User()
+        {
+            Id = userId,
+            Username = userName!,
+            Role = role
+        };
+        var claims = GetClaims(userClaims);
         var token = TokenProvider.GenerateTokens(claims);
 
-        var loginResponse = new LoginResponse()
+        //add new refesh token
+        _refreshTokenRepository.Add(new RefreshToken()
+        {
+            JwtId = token.JwtId,
+            UserId = userId,
+            Token = token.RefreshToken,
+            IsUsed = false,
+            IsRevoked = false,
+            IssuedAt = DateTime.UtcNow,
+            ExpireAt = DateTime.UtcNow.AddMinutes(TokenProvider.RefreshTokenExpirationInMinutes)
+        });
+        await _refreshTokenRepository.SaveChangesAsync();
+
+        var tokenResponse = new TokenResponse()
         {
             AccessToken = token.AccessToken,
             RefreshToken = token.RefreshToken,
-            User = selectedUser.ToResponse()
         };
-        return Result<LoginResponse>.SuccessWithBody(loginResponse);
+        return Result<TokenResponse>.SuccessWithBody(tokenResponse);
 
+    }
+    public async Task<Result> GetCurrentUserContext()
+    {
+        var currentUserId = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        var selectedUserEntity = await _userRepository.FirstOrDefaultAsync(x=>x.Id ==  currentUserId);
+        if (selectedUserEntity == null)
+        {
+            return Result.Error(HttpStatusCode.Unauthorized, ErrorMessage.ObjectNotFound(currentUserId, "User"));
+        }
+        return Result<UserResponse>.SuccessWithBody(selectedUserEntity.ToResponse());
     }
 
     private Claim[] GetClaims(User user)
@@ -148,7 +195,6 @@ public class UserService : IUserService
             new Claim(ClaimType.Role , user.Role.ToString())
         ];
     }
-
     private async Task<TokenValidationModel<RefreshToken>> ValidateRefreshToken(TokenModel tokenModel)
     {
         if (string.IsNullOrEmpty(tokenModel.RefreshToken))
@@ -174,5 +220,110 @@ public class UserService : IUserService
         }
         return TokenValidationModel<RefreshToken>.Success(selectedRefreshToken);
         
+    }
+
+    //CRUD
+    public async Task<Result> GetAll(FilterRequest filter)
+    {
+        var res = await _userRepository.GetByFilterAsync(
+            pageSize: filter.PageSize,
+            pageNumber: filter.PageNumber,
+            predicate: x => !x.IsDeleted,
+            selectQuery: x => x.ToResponse()
+        );
+        return FilterResult<List<UserResponse>>.Success(res.Data.ToList(), res.TotalCount);
+    }
+
+    public async Task<Result> GetById(Guid id)
+    {
+        var selectedEntity = await _userRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (selectedEntity == null)
+        {
+            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Book "));
+        }
+        return Result<UserResponse>.SuccessWithBody(selectedEntity.ToResponse());
+    }
+
+    public async Task<Result> Add(RegisterRequest registerRequest)
+    {
+        var validateResult = _registerValidator.Validate(registerRequest);
+        if (!validateResult.IsValid)
+        {
+            return Result.ErrorValidation(validateResult);
+        }
+        if (await _userRepository.AnyAsync(x => x.Username == registerRequest.Username.Trim().ToLower()))
+        {
+            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(registerRequest.Username, "User"));
+        }
+        if (await _userRepository.AnyAsync(x => x.Email == registerRequest.Email.Trim().ToLower()))
+        {
+            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(registerRequest.Email, "User with email"));
+        }
+
+        var userEntity = registerRequest.ToEntity();
+        userEntity.PasswordHash = registerRequest.Password.Hash();
+        userEntity.CreatedAt = userEntity.UpdatedAt = DateTime.Now;
+        if (registerRequest.Role == Role.Admin)
+        {
+            userEntity.CreatedBy = userEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        }
+        _userRepository.Add(userEntity);
+        await _userRepository.SaveChangesAsync();
+
+        var claims = GetClaims(userEntity);
+        var token = TokenProvider.GenerateTokens(claims);
+
+        var loginResponse = new LoginResponse()
+        {
+            AccessToken = token.AccessToken,
+            RefreshToken = token.RefreshToken,
+            User = userEntity.ToResponse()
+        };
+
+        return Result<LoginResponse>.SuccessWithBody(loginResponse);
+    }
+
+    public async Task<Result> Update(Guid id, UserUpdateRequest updatedUser)
+    {
+        var selectedEntity = await _userRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (selectedEntity == null)
+        {
+            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "User"));
+        }
+        if (selectedEntity.Email != updatedUser.Email.Trim().ToLower())
+        {
+            if (await _userRepository.AnyAsync(x => x.Email == updatedUser.Email.Trim().ToLower()))
+            {
+                return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(updatedUser.Email, "User with email"));
+            }
+        }
+        var validateResult = _userUpdateValidator.Validate(updatedUser);
+        if (!validateResult.IsValid)
+        {
+            return Result.ErrorValidation(validateResult);
+        }
+        selectedEntity.MappingFieldFrom(updatedUser);
+        selectedEntity.UpdatedAt = DateTime.Now;
+        selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+
+        _userRepository.Update(selectedEntity);
+        await _userRepository.SaveChangesAsync();
+        return Result.SuccessNoContent();
+    }
+
+    public async Task<Result> Delete(Guid id)
+    {
+        var selectedEntity = await _userRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (selectedEntity == null)
+        {
+            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "User"));
+        }
+        selectedEntity.UpdatedAt = DateTime.Now;
+        selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        selectedEntity.IsDeleted = true;
+        _userRepository.Update(selectedEntity);
+        await _userRepository.SaveChangesAsync();
+
+        return Result.SuccessNoContent();
     }
 }

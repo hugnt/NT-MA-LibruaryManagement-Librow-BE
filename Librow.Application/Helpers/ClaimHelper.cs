@@ -27,13 +27,30 @@ public static class ClaimHelper
         }
     }
 
-    public static T? GetItem<T>(HttpContext? context, string key)
+    public static T? GetClaimValue<T>(HttpContext? context, string claimType)
     {
-        if (context?.Items[key] is T value)
+        var value = context?.User?.Claims.FirstOrDefault(c => c.Type == claimType)?.Value;
+        if (string.IsNullOrEmpty(value)) return default;
+
+        try
         {
-            return value;
+            var targetType = typeof(T);
+            if (targetType.IsEnum && Enum.TryParse(targetType, value, true, out var enumValue))
+            {
+                return (T?)enumValue;
+            }
+            // Guid
+            if (targetType == typeof(Guid) && Guid.TryParse(value, out var guidResult))
+            {
+                return (T)(object)guidResult;
+            }
+            return (T)Convert.ChangeType(value, targetType);
         }
-        return default;
+        catch
+        {
+            
+            return default;
+        }
     }
 
 }

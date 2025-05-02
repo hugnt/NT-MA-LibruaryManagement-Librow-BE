@@ -19,5 +19,5 @@ public class FilterResult<T> : Result<T>
 {
     public int TotalRecords { get; set; }
 
-    public static FilterResult<T> Success(T body, int totalRecords) => new() { IsSuccess = true, StatusCode = HttpStatusCode.OK, Message = "Ok", Metadata = body, TotalRecords = totalRecords };
+    public static FilterResult<T> Success(T body, int totalRecords) => new() { IsSuccess = true, StatusCode = HttpStatusCode.OK, Message = "Ok", Data = body, TotalRecords = totalRecords };
 }

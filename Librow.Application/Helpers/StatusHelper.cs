@@ -6,15 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Librow.Application.Helpers;
-public class StatusHelper
+public class RoleHelper
 {
-    public static string GetStatusName(RequestStatus status)
+    public static string GetRoleName(Role role)
     {
-        return status switch
+        return role switch
         {
-            RequestStatus.Waiting => "Waiting",
-            RequestStatus.Approved => "Approved",
-            RequestStatus.Rejected => "Rejected",
+            Role.Admin => "Admin",
+            Role.Customer => "Customer",
             _ => "Undefined"
         };
     }

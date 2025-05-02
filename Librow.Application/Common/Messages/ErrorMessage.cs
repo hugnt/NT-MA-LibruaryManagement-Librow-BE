@@ -8,6 +8,7 @@ namespace Librow.Application.Common.Messages;
 public class ErrorMessage
 {
     public static string ConcurrencyConlict = "The data has been changed by someone else, please try again!";
+    public static string UserHasNoPermission = "Yot don't have permission to do this task!";
     public static string ObjectNotFound(object value, string objName = "") => $"{objName} '{value}' is not existed!";
     public static string ObjectExisted(object value, string objName = "") => $"{objName} '{value}' is already existed!";
 

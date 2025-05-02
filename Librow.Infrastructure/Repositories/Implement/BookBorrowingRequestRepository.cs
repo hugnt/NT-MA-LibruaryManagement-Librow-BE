@@ -19,6 +19,8 @@ public class BookBorrowingRequestRepository : Repository<BookBorrowingRequest>, 
     public async Task<BookBorrowingRequest?> GetDetailAsync(Expression<Func<BookBorrowingRequest, bool>> predicate, CancellationToken token = default)
     {
         return await _context.Set<BookBorrowingRequest>()
+                                .Include(x=>x.Requestor)
+                                .Include(x => x.Approver)
                                 .Include(x => x.BookBorrowingRequestDetails)
                                 .ThenInclude(y => y.Book)
                                 .FirstOrDefaultAsync(predicate, token);

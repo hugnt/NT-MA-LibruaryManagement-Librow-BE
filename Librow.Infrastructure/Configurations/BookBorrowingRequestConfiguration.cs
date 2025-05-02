@@ -20,12 +20,14 @@ public sealed class BookBorrowingRequestConfiguration : IEntityTypeConfiguration
             .HasForeignKey(x => x.RequestorId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(bbr => bbr.ApproverId).IsRequired(false);
+
         builder
            .HasOne<User>(bbr => bbr.Approver).WithMany(u => u.BookBorrowingRequestsAsApprover)
            .HasForeignKey(x => x.ApproverId)
            .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Property(x => x.Status).IsRequired();
+        builder.Property(x => x.Status).IsRequired(); 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
     }

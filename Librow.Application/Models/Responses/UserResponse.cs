@@ -13,7 +13,6 @@ public class LoginResponse
     public string AccessToken { get; set; }
     public string RefreshToken { get; set; }
     public UserResponse User { get; set; }
-
 }
 public class UserResponse
 {
@@ -22,5 +21,12 @@ public class UserResponse
     public string Username { get; set; }
     public string Email { get; set; }
     public Role Role { get; set; }
+    public string RoleName { get; set; }
+}
+
+public class TokenResponse
+{
+    public string AccessToken { get; set; }
+    public string RefreshToken { get; set; }
 
 }

@@ -66,7 +66,7 @@ public class BookService : IBookService
         }
         var bookEntity = newBook.ToEntity();
         bookEntity.CreatedAt = bookEntity.UpdatedAt = DateTime.Now;
-        bookEntity.CreatedBy = bookEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        bookEntity.CreatedBy = bookEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
         bookEntity.Available = newBook.Quantity;
 
         _bookRepository.Add(bookEntity);
@@ -87,23 +87,26 @@ public class BookService : IBookService
         {
             return Result.ErrorValidation(validateResult);
         }
-        if (updatedBook.Quantity < selectedEntity.Available)
+        var numberOfBookInBorrowing = selectedEntity.Quantity - selectedEntity.Available;
+        if (updatedBook.Quantity < numberOfBookInBorrowing)
         {
-            return Result.Error(HttpStatusCode.BadRequest, BookMessage.QuantityCanNotBeLowerThanAvailable);
+            return Result.Error(HttpStatusCode.BadRequest, BookMessage.QuantityCanNotBeLowerThanBorrowingNumber);
         }
         if (!await _bookCategoryRepository.AnyAsync(x => x.Id == updatedBook.CategoryId))
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(updatedBook.CategoryId, "Book Category"));
         }
 
-        if (selectedEntity.Quantity == 0)
-        {
-            selectedEntity.Available = updatedBook.Quantity;
-        }
+        // Update quantity from 5 -> 6 : availabel + 1
+        // Update quantity from 5 -> 4 : availabel - 1
+        // Update quantity from 5 -> 5 : stay
+        var offsetQuantity = updatedBook.Quantity - selectedEntity.Quantity;
+        selectedEntity.Available += offsetQuantity;
+
         selectedEntity.MappingFieldFrom(updatedBook);
         
         selectedEntity.UpdatedAt = DateTime.Now;
-        selectedEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+        selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
 
         _bookRepository.Update(selectedEntity);
         await _bookRepository.SaveChangesAsync();
@@ -113,7 +116,7 @@ public class BookService : IBookService
 
     public async Task<Result> Delete(Guid id)
     {
-        var selectedEntity = await _bookRepository.FirstOrDefaultAsync(x => x.Id == id);
+        var selectedEntity = await _bookRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         if (selectedEntity == null)
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Book"));
@@ -125,7 +128,7 @@ public class BookService : IBookService
         if (await _bookBorrowingRequestDetailsRepository.AnyAsync(x => x.BookId == selectedEntity.Id))
         {
             selectedEntity.UpdatedAt = DateTime.Now;
-            selectedEntity.UpdatedBy = ClaimHelper.GetItem<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
+            selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
             selectedEntity.IsDeleted = true;
             _bookRepository.Update(selectedEntity);
         }
