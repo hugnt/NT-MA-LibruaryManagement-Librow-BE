@@ -5,6 +5,7 @@ using Librow.Core.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,6 +36,14 @@ public static class UserMapping
         Email = user.Email,
         Fullname = user.Fullname,
         Role = user.Role,
-        RoleName = RoleHelper.GetRoleName(user.Role),
+    };
+
+    public static Expression<Func<User, UserResponse>> SelectResponseExpression = x => new UserResponse
+    {
+        Id = x.Id,
+        Username = x.Username,
+        Email = x.Email,
+        Fullname = x.Fullname,
+        Role = x.Role,
     };
 }

@@ -4,6 +4,7 @@ using Librow.Core.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,9 +21,9 @@ public static class BookCategoryMapping
         trackingEntity.Name = updatedEntity.Name;
     }
 
-    public static BookCategoryResponse ToResponse(this BookCategory bookCategory) => new()
+    public static Expression<Func<BookCategory, BookCategoryResponse>> SelectResponseExpression = x => new BookCategoryResponse
     {
-        Id = bookCategory.Id,
-        Name = bookCategory.Name,
+        Id = x.Id,
+        Name = x.Name,
     };
 }

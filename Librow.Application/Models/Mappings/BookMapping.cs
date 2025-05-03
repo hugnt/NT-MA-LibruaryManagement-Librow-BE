@@ -4,6 +4,7 @@ using Librow.Core.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,5 +36,16 @@ public static class BookMapping
         Author = book.Author,
         Quantity = book.Quantity,
         Available = book.Available
+    };
+
+    public static Expression<Func<Book, BookResponse>> SelectResponseExpression = x => new BookResponse
+    {
+        Id = x.Id,
+        Title = x.Title,
+        CategoryId = x.CategoryId,
+        CategoryName = x.BookCategory.Name,
+        Author = x.Author,
+        Quantity = x.Quantity,
+        Available = x.Available
     };
 }

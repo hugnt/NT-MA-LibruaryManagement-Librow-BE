@@ -37,7 +37,7 @@ public class BookBorrowingRequestController : ApiControllerBase
     }
 
     [HttpGet("all-borrowing-books")]
-    public async Task<IActionResult> GetAllBorrowingBooks([FromQuery] FilterRequest filter)
+    public async Task<IActionResult> GetAllBorrowingBooks([FromQuery] BorrowingRequestFilter filter)
     {
         var res = await _bookBorrowingRequestService.GetAllBorrowingBooks(filter);
         return ApiResponse(res);

@@ -43,7 +43,6 @@ public class Repository<T> : IRepository<T> where T : class
     public virtual async Task<(IEnumerable<TResult> Data, int TotalCount)> GetByFilterAsync<TResult>(int? pageSize, int? pageNumber,
                                                                                                 Expression<Func<T, TResult>> selectQuery,
                                                                                                 Expression<Func<T, bool>>? predicate = null,
-                                                                                                Expression<Func<TResult, bool>>? predicateSearch = null,
                                                                                                 List<(Expression<Func<TResult, object>> KeySelector, bool IsAsc)>? orderBy = null,
                                                                                                 CancellationToken token = default,
                                                                                                 params Expression<Func<T, object>>[] navigationProperties)
@@ -52,11 +51,6 @@ public class Repository<T> : IRepository<T> where T : class
         var totalCount = await query.CountAsync(token);
 
         IQueryable<TResult> projectedQuery = query.Select(selectQuery);
-        if (predicateSearch != null)
-        {
-            projectedQuery = projectedQuery.Where(predicateSearch);
-        }
-
         if (orderBy != null && orderBy.Any())
         {
             IOrderedQueryable<TResult> orderedQuery = null!;
@@ -81,8 +75,9 @@ public class Repository<T> : IRepository<T> where T : class
         if (pageSize.HasValue && pageNumber.HasValue)
         {
             projectedQuery = projectedQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
-        } 
+        }
 
+        //var queryString = projectedQuery.ToQueryString();
         return (await projectedQuery.ToListAsync(token), totalCount);
     }
 
@@ -90,21 +85,16 @@ public class Repository<T> : IRepository<T> where T : class
                                              CancellationToken token = default,
                                              params Expression<Func<T, object>>[] navigationProperties)
     {
-        return await GetAllAsync<T>(predicate, null, token, navigationProperties);
+        return await GetQuery(predicate, navigationProperties).ToListAsync(token);
     }
     public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>( Expression<Func<T, bool>>? predicate = null,
                                                                              Expression<Func<T, TResult>>? selectQuery = null,
                                                                              CancellationToken token = default,
                                                                              params Expression<Func<T, object>>[] navigationProperties)
     {
+        if (selectQuery == null) throw new ArgumentNullException(nameof(selectQuery));
         var query = GetQuery(predicate, navigationProperties);
-
-        if (selectQuery != null)
-        {
-            return await query.Select(selectQuery).ToListAsync(token);
-        }
-
-        return await query.Cast<TResult>().ToListAsync(token);
+        return await query.Select(selectQuery).ToListAsync(token);
     }
 
 
@@ -112,6 +102,15 @@ public class Repository<T> : IRepository<T> where T : class
     {
         return await GetQuery(predicate, navigationProperties).FirstOrDefaultAsync(token);
     }
+
+
+    public async Task<TResult?> FirstOrDefaultAsync<TResult>(Expression<Func<T, bool>>? predicate = null, Expression<Func<T, TResult>> selectQuery = null!, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties)
+    {
+        if (selectQuery == null) throw new ArgumentNullException(nameof(selectQuery));
+        var query = GetQuery(predicate, navigationProperties);
+        return await query.Select(selectQuery).FirstOrDefaultAsync(token);
+    }
+
 
     public virtual async Task<bool> AnyAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties)
     {
@@ -180,4 +179,5 @@ public class Repository<T> : IRepository<T> where T : class
         await _context.Set<T>().Where(predicate).ExecuteUpdateAsync(updateExpression, cancellationToken);
     }
 
+  
 }

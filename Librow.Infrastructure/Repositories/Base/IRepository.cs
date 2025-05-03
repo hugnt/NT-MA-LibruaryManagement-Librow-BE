@@ -21,13 +21,17 @@ public interface IRepository<T>
     public Task<(IEnumerable<TResult> Data, int TotalCount)> GetByFilterAsync<TResult>(int? pageSize, int? pageNumber,
                                                                                         Expression<Func<T, TResult>> selectQuery,
                                                                                         Expression<Func<T, bool>>? predicate = null,
-                                                                                        Expression<Func<TResult, bool>>? predicateSearch = null,
                                                                                         List<(Expression<Func<TResult, object>> KeySelector, bool IsAsc)>? orderBy = null,
                                                                                         CancellationToken token = default,
                                                                                         params Expression<Func<T, object>>[] navigationProperties);
-    public Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null, 
+    public Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null,
                                         CancellationToken token = default,
                                         params Expression<Func<T, object>>[] navigationProperties);
+
+    public Task<TResult?> FirstOrDefaultAsync<TResult>(Expression<Func<T, bool>>? predicate = null,
+                                    Expression<Func<T, TResult>> selectQuery = null,
+                                    CancellationToken token = default,
+                                    params Expression<Func<T, object>>[] navigationProperties);
     public Task<bool> AnyAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties);
     public Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties);
     public Task AddRangeAsync(List<T> listEntity);

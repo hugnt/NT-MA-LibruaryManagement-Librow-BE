@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Librow.Application.Common.Email;
 using Librow.Application.Common.Messages;
 using Librow.Application.Common.Security.Token;
 using Librow.Application.Helpers;
@@ -15,13 +16,16 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Net;
+using System.Net.Mail;
 
 namespace Librow.Application.Services.Implement;
 public class BookBorrowingRequestService : IBookBorrowingRequestService
 {
+    private readonly IRepository<User> _userRepository;
     private readonly IRepository<Book> _bookRepository;
     private readonly IBookBorrowingRequestRepository _bookBorrowingRequestRepository;
     private readonly IRepository<BookBorrowingRequestDetails> _bookBorrowingRequestDetailsRepository;
+    private readonly IEmailService _emailService;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     private const int MAX_BOOK_PER_REQUEST = 5;
@@ -29,12 +33,14 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
 
     public BookBorrowingRequestService(IRepository<Book> bookRepository, IHttpContextAccessor httpContextAccessor,
                                         IRepository<BookBorrowingRequestDetails> bookBorrowingRequestDetailsRepository,
-                                        IBookBorrowingRequestRepository bookBorrowingRequestRepository)
+                                        IBookBorrowingRequestRepository bookBorrowingRequestRepository, IEmailService emailService, IRepository<User> userRepository)
     {
         _bookRepository = bookRepository;
         _httpContextAccessor = httpContextAccessor;
         _bookBorrowingRequestDetailsRepository = bookBorrowingRequestDetailsRepository;
         _bookBorrowingRequestRepository = bookBorrowingRequestRepository;
+        _emailService = emailService;
+        _userRepository = userRepository;
     }
 
     public async Task<Result> GetAll(BorrowingRequestFilter filter)
@@ -51,28 +57,28 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
             filter.PageSize,
             filter.PageNumber,
             predicate: predicate,
-            selectQuery: x => x.ToResponse(),
+            selectQuery: BookBorrowingRequestMapping.SelectResponseExpression,
             navigationProperties: [x => x.Requestor, x => x.Approver]
         );
 
         return FilterResult<List<BorrowingRequestResponse>>.Success(res.Data.ToList(), res.TotalCount);
     }
 
-    public async Task<Result> GetAllBorrowingBooks(FilterRequest filter)
+    public async Task<Result> GetAllBorrowingBooks(BorrowingRequestFilter filter)
     {
         var context = _httpContextAccessor.HttpContext;
         var role = ClaimHelper.GetClaimValue<Role>(context, ClaimType.Role);
         var userId = ClaimHelper.GetClaimValue<Guid>(context, ClaimType.Id);
 
-        Expression<Func<BookBorrowingRequestDetails, bool>> predicate = role == Role.Admin
-                                                            ? x => x.Status == BorrowingStatus.Borrowing
-                                                            : x => x.Status == BorrowingStatus.Borrowing && x.BookBorrowingRequest.RequestorId == userId;
+        Expression<Func<BookBorrowingRequestDetails, bool>> predicate = x =>
+                                        (role == Role.Admin || x.BookBorrowingRequest.RequestorId == userId) &&
+                                        (filter.Status == null || x.BookBorrowingRequest.Status == filter.Status);
 
         var res = await _bookBorrowingRequestDetailsRepository.GetByFilterAsync(
             filter.PageSize,
             filter.PageNumber,
             predicate: predicate,
-            selectQuery: x => x.ToResponse(),
+            selectQuery: BookBorrowingRequestDetailsMapping.SelectResponseExpression,
             navigationProperties: [x => x.Book, x => x.BookBorrowingRequest]
         );
 
@@ -172,6 +178,8 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
             await _bookBorrowingRequestRepository.SaveChangesAsync();
             await _bookBorrowingRequestRepository.CommitAsync();
 
+            await SendMailWithBorrowingStatus(requestEntity);
+
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -216,6 +224,8 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
             _bookBorrowingRequestRepository.Update(selectedEntity);
             await _bookBorrowingRequestRepository.SaveChangesAsync();
             await _bookBorrowingRequestRepository.CommitAsync();
+
+            await SendMailWithBorrowingStatus(selectedEntity);
         }
         catch (Exception)
         {
@@ -284,4 +294,55 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
        
         return Result.SuccessNoContent();
     }
+
+    
+    private async Task SendMailWithBorrowingStatus(BookBorrowingRequest request)
+    {
+        var user = await _userRepository.FirstOrDefaultAsync(x => x.Id == request.RequestorId);
+        if (user == null) return;
+        try
+        {
+            var htmlEmail = await FileHelper.GetTemplateFile("NotificationOfStatusChanged.cshtml");
+            htmlEmail = htmlEmail
+                            .Replace("{{param_fullname}}", user.Fullname)
+                            .Replace("{{param_status}}", EnumHelper.GetStatusName(request.Status))
+                            .Replace("{{param_borrow_datetime}}", request.CreatedAt.ToString("MM/dd/yyyy"))
+                           
+                            .Replace("{{param_action_link}}", "http://localhost:5173/book-borrowing-request")
+                            .Replace("{{param_fullname}}", user.Fullname)
+                            .Replace("{{param_company_name}}", "Librow")
+                            .Replace("{{param_company_phonenumber}}", "0999999999")
+                            .Replace("{{param_company_address}}", "Hà Nội, Việt Nam")
+                            .Replace("{{param_company_url}}", "hugnt.space");
+            
+            if (request.Status == RequestStatus.Approved || request.Status == RequestStatus.Rejected)
+            {
+                var userConfirm = await _userRepository.FirstOrDefaultAsync(x => x.Id == request.ApproverId);
+                var confirmHtml = $@"
+                    <li><strong>Confirmed On:</strong> {request.UpdatedAt.ToString("MM/dd/yyyy")}</li>
+                    <li><strong>Confirmed By:</strong> {userConfirm?.Fullname??"Admin"}</li>
+                ";
+                htmlEmail = htmlEmail.Replace("{{param_confirm_info}}", confirmHtml);
+            }
+            else
+            {
+                htmlEmail = htmlEmail.Replace("{{param_confirm_info}}", "");
+            }
+            var emailRequest = new EmailRequest()
+            {
+                ToEmail = user.Email,
+                Subject = "[Librow] Notification about status changing",
+                Body = htmlEmail,
+            };
+            await _emailService.SendEmailAsync(emailRequest);
+
+        }
+        catch (Exception)
+        {
+            return;
+        }
+       
+
+    }
+
 }

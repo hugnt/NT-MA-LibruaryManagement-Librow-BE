@@ -6,7 +6,6 @@ public class BorrowingRequestResponse
     public Guid Id { get; set; }
     public string RequestorName { get; set; }
     public string ApproverName { get; set; }
-    public string StatusName { get; set; }
     public RequestStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -33,7 +32,8 @@ public class BorrowingBookResponse
     public Guid RequestId { get; set; }
     public Guid RequestDetailsId { get; set; }
     public Guid BookId { get; set; }
-    public BorrowingStatus Status { get; set; }
+    public BorrowingStatus BookStatus { get; set; }
+    public RequestStatus RequestStatus { get; set; }
     public string BookName { get; set; }
     public string Author { get; set; }
     public DateTime DueDate { get; set; }

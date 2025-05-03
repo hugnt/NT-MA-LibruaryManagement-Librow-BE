@@ -13,3 +13,12 @@ public class BookRequest
     public int Quantity { get; set; }
 
 }
+
+public class BookFilterRequest: FilterRequest
+{
+    public int MinAvailable { get; set; } = 0;
+    public int MaxAvailable { get; set; } = -1;
+    public double MinRating { get; set; } = 0;
+    public double MaxRating { get; set; } = 5;
+    public Guid? CategoryId { get; set; }
+}

@@ -9,9 +9,9 @@ using System.Text;
 namespace Librow.Application.Common.Security.Token;
 public static class TokenProvider
 {
-    private static Int32 _accessTokenExprirationInMinutes = 1;
+    private static int _accessTokenExprirationInMinutes = 1;
     private static string _secretKey = "5d2cb8e11157b7dbc8f7a4cb28734f4e7b265863ea9a7bfda9e58f12078e7c58";
-    public static Int32 RefreshTokenExpirationInMinutes = 2;
+    public static int RefreshTokenExpirationInMinutes = 2;
     public static TokenValidationParameters TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = false,
@@ -29,14 +29,14 @@ public static class TokenProvider
             TokenValidationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         }
     }
-    public static void SetAccessTokenExprirationTime(Int32 value)
+    public static void SetAccessTokenExprirationTime(int value)
     {
         if (value >= 0)
         {
             _accessTokenExprirationInMinutes = value;
         }
     }
-    public static void SetRefreshTokenExprirationTime(Int32 value)
+    public static void SetRefreshTokenExprirationTime(int value)
     {
         if (value >= 0)
         {

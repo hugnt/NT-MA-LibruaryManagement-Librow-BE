@@ -5,8 +5,9 @@ using FluentValidation;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using System.Text;
-using Librow.Application.Common.Security.Token;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Librow.Application.Common.Security.Token;
+using Librow.Application.Common.Email;
 
 namespace Librow.Application;
 public static class DependencyInjection
@@ -22,6 +23,10 @@ public static class DependencyInjection
             opt.TokenValidationParameters = TokenProvider.TokenValidationParameters;
         });
 
+        //Email
+        services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+        services.AddTransient<IEmailService, EmailService>();
+
         //Access context
         services.AddHttpContextAccessor();
 
@@ -33,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IBookCategoryService, BookCategoryService>();
         services.AddScoped<IBookService, BookService>();
         services.AddScoped<IBookBorrowingRequestService, BookBorrowingRequestService>();
+        services.AddScoped<IBookRatingService, BookRatingService>();
 
         return services;
     }

@@ -21,7 +21,7 @@ public class BookController : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] FilterRequest filter)
+    public async Task<IActionResult> GetAll([FromQuery] BookFilterRequest filter)
     {
         var res = await _bookService.GetAll(filter);
         return ApiResponse(res);

@@ -10,6 +10,7 @@ using Librow.Core.Entities;
 using Librow.Infrastructure.Repositories;
 using Librow.Infrastructure.Repositories.Base;
 using Microsoft.AspNetCore.Http;
+using System.Linq.Expressions;
 using System.Net;
 
 namespace Librow.Application.Services.Implement;
@@ -32,25 +33,40 @@ public class BookService : IBookService
         _bookBorrowingRequestDetailsRepository = bookBorrowingRequestDetailsRepository;
     }
 
-    public async Task<Result> GetAll(FilterRequest filter)
+    public async Task<Result> GetAll(BookFilterRequest filter)
     {
+        var searchValue = filter?.SearchValue?.Trim();
+        Expression<Func<Book, bool>> predicate = x => !x.IsDeleted
+                                                       && (string.IsNullOrEmpty(searchValue) || x.Title.Contains(searchValue) || x.Author.Contains(searchValue) || x.BookCategory.Name.Contains(searchValue))
+                                                       && x.Available >= filter!.MinAvailable && (filter.MaxAvailable == -1 || x.Available <= filter.MaxAvailable) 
+                                                       && (filter.CategoryId == null || x.CategoryId == filter.CategoryId)
+                                                       && (
+                                                            (filter.MinRating == 0 && filter.MaxRating == 5) 
+                                                            ||(x.BookRatings.Any()
+                                                                && x.BookRatings.Average(r => r.Rate) >= filter.MinRating
+                                                                && x.BookRatings.Average(r => r.Rate) <= filter.MaxRating)
+                                                          );
+
         var res = await _bookRepository.GetByFilterAsync(
-            pageSize: filter.PageSize, 
-            pageNumber: filter.PageNumber, 
-            predicate:x => !x.IsDeleted, 
-            selectQuery: x=>x.ToResponse(),
-            navigationProperties: [x => x.BookCategory]
+            pageSize: filter?.PageSize, 
+            pageNumber: filter?.PageNumber, 
+            predicate: predicate, 
+            selectQuery: BookMapping.SelectResponseExpression,
+            navigationProperties: [x => x.BookCategory, x=> x.BookRatings]
         );
         return FilterResult<List<BookResponse>>.Success(res.Data.ToList(), res.TotalCount);
     }
+
+
+
     public async Task<Result> GetById(Guid id)
     {
-        var selectedEntity = await _bookRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, navigationProperties: [x => x.BookCategory]);
+        var selectedEntity = await _bookRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, BookMapping.SelectResponseExpression, navigationProperties: [x => x.BookCategory]);
         if (selectedEntity == null)
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Book "));
         }
-        return Result<BookResponse>.SuccessWithBody(selectedEntity.ToResponse());
+        return Result<BookResponse>.SuccessWithBody(selectedEntity);
     }
 
     public async Task<Result> Add(BookRequest newBook)

@@ -229,19 +229,19 @@ public class UserService : IUserService
             pageSize: filter.PageSize,
             pageNumber: filter.PageNumber,
             predicate: x => !x.IsDeleted,
-            selectQuery: x => x.ToResponse()
+            selectQuery: UserMapping.SelectResponseExpression
         );
         return FilterResult<List<UserResponse>>.Success(res.Data.ToList(), res.TotalCount);
     }
 
     public async Task<Result> GetById(Guid id)
     {
-        var selectedEntity = await _userRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        var selectedEntity = await _userRepository.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, selectQuery: UserMapping.SelectResponseExpression);
         if (selectedEntity == null)
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Book "));
         }
-        return Result<UserResponse>.SuccessWithBody(selectedEntity.ToResponse());
+        return Result<UserResponse>.SuccessWithBody(selectedEntity);
     }
 
     public async Task<Result> Add(RegisterRequest registerRequest)

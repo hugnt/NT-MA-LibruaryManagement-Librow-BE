@@ -9,12 +9,18 @@
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="11.11.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    <PackageReference Include="MailKit" Version="4.12.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.15" />
+    <PackageReference Include="MimeKit" Version="4.12.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Librow.Core\Librow.Core.csproj" />
     <ProjectReference Include="..\Librow.Infrastructure\Librow.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Templates\" />
   </ItemGroup>
 
 </Project>

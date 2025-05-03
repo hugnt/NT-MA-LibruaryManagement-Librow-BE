@@ -7,7 +7,7 @@ namespace Librow.Application.Services;
 public interface IBookBorrowingRequestService
 {
     public Task<Result> GetAll(BorrowingRequestFilter filter);
-    public Task<Result> GetAllBorrowingBooks(FilterRequest filter);
+    public Task<Result> GetAllBorrowingBooks(BorrowingRequestFilter filter);
     public Task<Result> GetUserRequestInfo(RequestFilter requestFilter);
     public Task<Result> GetById(Guid id);
     public Task<Result> Add(BorrowingRequest newBookBorrowingRequest);

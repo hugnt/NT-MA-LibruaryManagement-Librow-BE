@@ -10,7 +10,7 @@ namespace Librow.Application.Models.Requests;
 
 public class BorrowingRequestFilter : FilterRequest
 {
-    public RequestStatus Status { get; set; }
+    public RequestStatus? Status { get; set; }
 }
 public class BorrowingDetailsRequest
 {
@@ -43,3 +43,4 @@ public class RequestFilter
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
 }
+

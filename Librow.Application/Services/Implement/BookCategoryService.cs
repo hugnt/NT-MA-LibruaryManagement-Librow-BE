@@ -33,17 +33,17 @@ public class BookCategoryService : IBookCategoryService
 
     public async Task<Result> GetAll(FilterRequest filter)
     {
-        var res = await _bookCategoryRepository.GetByFilterAsync(filter.PageSize, filter.PageNumber, selectQuery: x=>x.ToResponse());
+        var res = await _bookCategoryRepository.GetByFilterAsync(filter.PageSize, filter.PageNumber, selectQuery: BookCategoryMapping.SelectResponseExpression);
         return FilterResult<List<BookCategoryResponse>>.Success(res.Data.ToList(), res.TotalCount);
     }
     public async Task<Result> GetById(Guid id)
     {
-        var selectedEntity = await _bookCategoryRepository.FirstOrDefaultAsync(x => x.Id == id);
+        var selectedEntity = await _bookCategoryRepository.FirstOrDefaultAsync(x => x.Id == id, selectQuery: BookCategoryMapping.SelectResponseExpression);
         if (selectedEntity == null)
         {
             return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Book Category"));
         }
-        return Result<BookCategoryResponse>.SuccessWithBody(selectedEntity.ToResponse());
+        return Result<BookCategoryResponse>.SuccessWithBody(selectedEntity);
     }
 
     public async Task<Result> Add(BookCategoryRequest newBookCategory)
