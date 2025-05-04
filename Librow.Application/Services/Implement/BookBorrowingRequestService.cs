@@ -259,6 +259,35 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         return Result.SuccessNoContent();
     }
 
+    public async Task CheckOverdueBooks()
+    {
+        var listOverdueRequests = await _bookBorrowingRequestDetailsRepository.GetAllAsync(predicate: x => x.Status == BorrowingStatus.Borrowing && x.ExtendedDueDate.Date < DateTime.Today.Date,
+                                                                           selectQuery: BookBorrowingRequestMapping.SelectOverdueRequestExpression,
+                                                                           navigationProperties: [x => x.BookBorrowingRequest, x => x.Book]);
+        
+        if (listOverdueRequests != null)
+        {
+            var groupedOverdueRequests = listOverdueRequests
+                            .GroupBy(r => new { r.RequestorId, r.RequestorName, r.RequestorEmail })
+                            .Select(g => new OverdueRequestByUser
+                            {
+                                RequestorName = g.Key.RequestorName,
+                                RequestorEmail = g.Key.RequestorEmail,
+                                OverdueBooks = g.Select(r => new OverdueBook
+                                {
+                                    BookName = r.BookName,
+                                    ExtendedDueDate = r.ExtendedDueDate,
+                                    OverdueDays = (DateTime.Now.Date - r.ExtendedDueDate.Date).Days
+                                }).ToList()
+                            }).ToList();
+            foreach (var overdueRequest in groupedOverdueRequests)
+            {
+                await SendMailForOverdueBorrowingBooks(overdueRequest);
+            }
+           
+        }
+    }
+
     public async Task<Result> UpdateBorrowingBookStatus(Guid id, UpdateBorrowingStatusRequest updateBorrowingStatus)
     {
         var selectedEntity = await _bookBorrowingRequestDetailsRepository.FirstOrDefaultAsync(x => x.Id == id);
@@ -294,7 +323,6 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
        
         return Result.SuccessNoContent();
     }
-
     
     private async Task SendMailWithBorrowingStatus(BookBorrowingRequest request)
     {
@@ -330,7 +358,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
             }
             var emailRequest = new EmailRequest()
             {
-                ToEmail = user.Email,
+                ToEmails = [user.Email],
                 Subject = "[Librow] Notification about status changing",
                 Body = htmlEmail,
             };
@@ -341,8 +369,41 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         {
             return;
         }
-       
-
     }
 
+    private async Task SendMailForOverdueBorrowingBooks(OverdueRequestByUser overdueRequest)
+    {
+        try
+        {
+            var htmlEmail = await FileHelper.GetTemplateFile("NotificationOfOverdueBorrowing.cshtml");
+
+            var booksListHtml = string.Empty;
+            foreach (var overdueBook in overdueRequest.OverdueBooks)
+            {
+                booksListHtml += $@"
+                <tr>
+                    <td><strong>Book Title:</strong> {overdueBook.BookName}</td>
+                    <td><strong>Due Date:</strong> {overdueBook.ExtendedDueDate.ToString("MM/dd/yyyy")}</td>
+                    <td><strong>Overdue:</strong> {overdueBook.OverdueDays} day(s)</td>
+                </tr>";
+            }
+
+            htmlEmail = htmlEmail
+                            .Replace("{{param_fullname}}", overdueRequest.RequestorName)
+                            .Replace("{{param_books_list}}", booksListHtml); 
+
+            var emailRequest = new EmailRequest()
+            {
+                ToEmails = [overdueRequest.RequestorEmail],
+                Subject = "[Librow] Notification of overdue book",
+                Body = htmlEmail,
+            };
+            await _emailService.SendEmailAsync(emailRequest);
+
+        }
+        catch (Exception)
+        {
+            return;
+        }
+    }
 }

@@ -30,3 +30,18 @@ public class TokenResponse
     public string RefreshToken { get; set; }
 
 }
+
+
+public class AuditLogResponse
+{
+    public Guid? UserId { get; set; }
+    public string? Fullname { get; set; }
+    public Role? Role { get; set; }
+    public string? Action { get; set; }
+    public string? EntityName { get; set; }
+    public string? EntityId { get; set; }
+    public string? OldValues { get; set; }
+    public string? NewValues { get; set; }
+    public DateTime? CreatedAt { get; set; }
+
+}

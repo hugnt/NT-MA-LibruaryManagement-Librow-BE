@@ -26,7 +26,12 @@ public class EmailService : IEmailService
         MailboxAddress sender = new MailboxAddress(_emailSettings.DisplayName, _emailSettings.Email);
         email.Sender = sender;
         email.From.Add(sender);
-        email.To.Add(MailboxAddress.Parse(mailRequest.ToEmail));
+
+        foreach (var recipient in mailRequest.ToEmails)
+        {
+            email.To.Add(MailboxAddress.Parse(recipient));
+        }
+        
         email.Subject = mailRequest.Subject;
         var builder = new BodyBuilder();
 

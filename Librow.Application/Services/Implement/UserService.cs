@@ -16,6 +16,7 @@ using Librow.Infrastructure.Repositories.Base;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq.Expressions;
 using System.Net;
 using System.Security.Claims;
 using LoginRequest = Librow.Application.Models.Requests.LoginRequest;
@@ -27,11 +28,15 @@ public class UserService : IUserService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<RefreshToken> _refreshTokenRepository;
     private readonly IValidator<RegisterRequest> _registerValidator;
+    private readonly IRepository<AuditLog> _auditLogRepository;
     private readonly IValidator<UserUpdateRequest> _userUpdateValidator;
     private readonly IValidator<LoginRequest> _loginValidator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository, IHttpContextAccessor httpContextAccessor, IValidator<UserUpdateRequest> userUpdateValidator)
+    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator, 
+                        IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository, 
+                        IHttpContextAccessor httpContextAccessor, IValidator<UserUpdateRequest> userUpdateValidator, 
+                        IRepository<AuditLog> auditLogRepository)
     {
         _userRepository = userRepository;
         _registerValidator = registerValidator;
@@ -39,6 +44,7 @@ public class UserService : IUserService
         _refreshTokenRepository = refreshTokenRepository;
         _httpContextAccessor = httpContextAccessor;
         _userUpdateValidator = userUpdateValidator;
+        _auditLogRepository = auditLogRepository;
     }
 
 
@@ -325,5 +331,22 @@ public class UserService : IUserService
         await _userRepository.SaveChangesAsync();
 
         return Result.SuccessNoContent();
+    }
+
+    public async Task<Result> GetActitviyLog(FilterRequest filter)
+    {
+        var searchValue = filter?.SearchValue?.Trim();
+        Expression<Func<AuditLog, bool>> predicate = x =>  string.IsNullOrEmpty(searchValue)
+                                                       || (x.User != null && !string.IsNullOrEmpty(x.User.Fullname) && x.User.Fullname.Contains(searchValue))
+                                                       || (!string.IsNullOrEmpty(x.Action) && x.Action.Contains(searchValue))
+                                                       || (!string.IsNullOrEmpty(x.EntityName) && x.EntityName.Contains(searchValue));
+        var res = await _auditLogRepository.GetByFilterAsync(
+                                            pageSize: filter?.PageSize,
+                                            pageNumber: filter?.PageNumber,
+                                            predicate: predicate,
+                                            selectQuery: UserMapping.SelectAuditLogResponseExpression,
+                                            navigationProperties: [x=>x.User]
+        );
+        return FilterResult<List<AuditLogResponse>>.Success(res.Data.ToList(), res.TotalCount);
     }
 }

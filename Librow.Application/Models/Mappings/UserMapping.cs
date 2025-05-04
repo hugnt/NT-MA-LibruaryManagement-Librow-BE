@@ -46,4 +46,17 @@ public static class UserMapping
         Fullname = x.Fullname,
         Role = x.Role,
     };
+
+    public static Expression<Func<AuditLog, AuditLogResponse>> SelectAuditLogResponseExpression = x => new AuditLogResponse
+    {
+        UserId = x.UserId,
+        Fullname = x.User.Fullname,
+        Role = x.User.Role,
+        Action = x.Action,
+        EntityName = x.EntityName,
+        EntityId = x.EntityId,
+        OldValues = x.OldValues,
+        NewValues = x.NewValues,
+        CreatedAt = x.CreatedAt
+    };
 }

@@ -20,4 +20,7 @@ public interface IUserService
     public Task<Result> Add(RegisterRequest registerRequest);
     public Task<Result> Update(Guid id, UserUpdateRequest updatedUser);
     public Task<Result> Delete(Guid id);
+
+    public Task<Result> GetActitviyLog(FilterRequest filter);
+
 }

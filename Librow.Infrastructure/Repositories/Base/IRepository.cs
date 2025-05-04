@@ -34,6 +34,7 @@ public interface IRepository<T>
                                     params Expression<Func<T, object>>[] navigationProperties);
     public Task<bool> AnyAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties);
     public Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties);
+    public Task<int> SumAsync(Expression<Func<T, int>> selector, Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties);
     public Task AddRangeAsync(List<T> listEntity);
     public void Add(T entity);
     public void Update(T entity);
@@ -46,4 +47,7 @@ public interface IRepository<T>
     public Task BeginTransactionAsync();
     public Task CommitAsync();
     public Task RollbackAsync();
+
+    public Task<TResult?> ExecuteRawSqlSingleAsync<TResult>(string sql, params object[] parameters);
+    public Task<List<TResult>> ExecuteRawSqlAsync<TResult>(string sql, params object[] parameters);
 }

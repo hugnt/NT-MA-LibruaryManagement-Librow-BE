@@ -7,6 +7,11 @@ using System.Threading.Tasks;
 
 namespace Librow.Application.Models.Requests;
 
+public class RequestFilter
+{
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+}
 
 public class BorrowingRequestFilter : FilterRequest
 {
@@ -38,9 +43,28 @@ public class UpdateBorrowingStatusRequest
 
 }
 
-public class RequestFilter
+public class OverdueRequest
 {
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid RequestorId { get; set; }
+    public string RequestorName { get; set; }
+    public string RequestorEmail { get; set; }
+    public DateTime ExtendedDueDate { get; set; }
+    public string BookName { get; set; }
 }
 
+
+public class OverdueRequestByUser
+{
+    public string RequestorName { get; set; }
+    public string RequestorEmail { get; set; }
+    public List<OverdueBook> OverdueBooks { get; set; }
+
+}
+
+public class OverdueBook
+{
+    public string BookName { get; set; }
+    public DateTime ExtendedDueDate { get; set; }
+    public int OverdueDays { get; set; }
+}

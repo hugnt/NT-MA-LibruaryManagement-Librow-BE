@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Librow.Core.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
+using Newtonsoft.Json;
 using System.Linq.Expressions;
 
 namespace Librow.Infrastructure.Repositories.Base;
@@ -58,12 +60,11 @@ public class Repository<T> : IRepository<T> where T : class
                 }
                 else
                 {
-                    orderedQuery = isAsc? orderedQuery.ThenBy(keySelector): orderedQuery.ThenByDescending(keySelector);
+                    orderedQuery = isAsc ? orderedQuery.ThenBy(keySelector) : orderedQuery.ThenByDescending(keySelector);
                 }
             }
             projectedQuery = orderedQuery;
         }
-
 
         if (pageSize.HasValue && pageNumber.HasValue)
         {
@@ -80,7 +81,7 @@ public class Repository<T> : IRepository<T> where T : class
     {
         return await GetQuery(predicate, navigationProperties).ToListAsync(token);
     }
-    public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>( Expression<Func<T, bool>>? predicate = null,
+    public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>(Expression<Func<T, bool>>? predicate = null,
                                                                              Expression<Func<T, TResult>>? selectQuery = null,
                                                                              CancellationToken token = default,
                                                                              params Expression<Func<T, object>>[] navigationProperties)
@@ -115,10 +116,66 @@ public class Repository<T> : IRepository<T> where T : class
         return await GetQuery(predicate, navigationProperties).CountAsync(token);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<int> SumAsync(Expression<Func<T, int>> selector, Expression<Func<T, bool>>? predicate = null, CancellationToken token = default, params Expression<Func<T, object>>[] navigationProperties)
+    {
+        return await GetQuery(predicate, navigationProperties).SumAsync(selector);
+    }
+
+    public Task SaveChangesAsync_OLD(CancellationToken cancellationToken = default)
     {
         return _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added ||
+                                                            e.State == EntityState.Modified ||
+                                                            e.State == EntityState.Deleted);
+
+
+        foreach (var entry in entries)
+        {
+            try
+            {
+                var entityName = entry.Entity.GetType().Name;
+                if (entityName == nameof(RefreshToken)) continue;
+                var primaryKey = entry.Properties.First(p => p.Metadata.IsPrimaryKey()).CurrentValue?.ToString();
+
+                var auditLog = new AuditLog
+                {
+                    Action = entry.State.ToString(),
+                    EntityName = entityName,
+                    EntityId = primaryKey,
+                    CreatedAt = DateTime.Now,
+                };
+
+                var updatedByProperty = entry.Entity.GetType().GetProperty("UpdatedBy");
+                if (updatedByProperty != null)
+                {
+                    var updatedByValue = updatedByProperty.GetValue(entry.Entity);
+                    auditLog.UserId = updatedByValue as Guid?;
+                }
+
+                if (entry.State == EntityState.Modified)
+                {
+                    auditLog.OldValues = JsonConvert.SerializeObject(entry.OriginalValues.Properties.ToDictionary(p => p.Name, p => entry.OriginalValues[p]));
+                    auditLog.NewValues = JsonConvert.SerializeObject(entry.CurrentValues.Properties.ToDictionary(p => p.Name, p => entry.CurrentValues[p]));
+                }
+                else if (entry.State == EntityState.Added)
+                {
+                    auditLog.NewValues = JsonConvert.SerializeObject(entry.CurrentValues.Properties.ToDictionary(p => p.Name, p => entry.CurrentValues[p]));
+                }
+                else if (entry.State == EntityState.Deleted)
+                {
+                    auditLog.OldValues = JsonConvert.SerializeObject(entry.OriginalValues.Properties.ToDictionary(p => p.Name, p => entry.OriginalValues[p]));
+                }
+                _context.Set<AuditLog>().Add(auditLog);
+            }
+            catch (Exception) { }
+        }
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
 
     protected IQueryable<T> GetQuery(Expression<Func<T, bool>>? predicate = null, params Expression<Func<T, object>>[] navigationProperties)
     {
@@ -172,5 +229,13 @@ public class Repository<T> : IRepository<T> where T : class
         await _context.Set<T>().Where(predicate).ExecuteUpdateAsync(updateExpression, cancellationToken);
     }
 
-  
+    public async Task<TResult?> ExecuteRawSqlSingleAsync<TResult>(string sql, params object[] parameters)
+    {
+        return await _context.Database.SqlQueryRaw<TResult>(sql, parameters).SingleOrDefaultAsync();
+    }
+
+    public async Task<List<TResult>> ExecuteRawSqlAsync<TResult>(string sql, params object[] parameters)
+    {
+        return await _context.Database.SqlQueryRaw<TResult>(sql, parameters).ToListAsync();
+    }
 }

@@ -8,6 +8,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Librow.Application.Common.Security.Token;
 using Librow.Application.Common.Email;
+using Librow.Application.BackgroundJobs;
+using Coravel;
 
 namespace Librow.Application;
 public static class DependencyInjection
@@ -39,6 +41,11 @@ public static class DependencyInjection
         services.AddScoped<IBookService, BookService>();
         services.AddScoped<IBookBorrowingRequestService, BookBorrowingRequestService>();
         services.AddScoped<IBookRatingService, BookRatingService>();
+        services.AddScoped<IDashboardService, DashboardService>();
+
+        //Background Job
+        services.AddScheduler();
+        services.AddTransient<CheckOverdueBorrowedBooksJob>();
 
         return services;
     }

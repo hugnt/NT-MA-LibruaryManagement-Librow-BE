@@ -42,6 +42,17 @@ public static class BookBorrowingRequestMapping
         UpdatedAt = x.UpdatedAt,
     };
 
+
+    public static Expression<Func<BookBorrowingRequestDetails, OverdueRequest>> SelectOverdueRequestExpression = x => new OverdueRequest
+    {
+       RequestId = x.RequestId,
+       RequestorId = x.BookBorrowingRequest.Requestor.Id,
+       RequestorName =  x.BookBorrowingRequest.Requestor.Fullname,
+       RequestorEmail = x.BookBorrowingRequest.Requestor.Email,
+       ExtendedDueDate = x.ExtendedDueDate,
+       BookName = x.Book.Title
+
+    };
 }
 
 public class BookBorrowingRequestDetailsMapping

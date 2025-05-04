@@ -95,4 +95,13 @@ public class UserController : ApiControllerBase
         var res = await _userService.Delete(id);
         return ApiResponse(res);
     }
+
+
+    [RoleAuthorize(AuthRole.Admin)]
+    [HttpGet("get-activity-logs")]
+    public async Task<IActionResult> GetActitviyLog([FromQuery] FilterRequest filter)
+    {
+        var res = await _userService.GetActitviyLog(filter);
+        return ApiResponse(res);
+    }
 }

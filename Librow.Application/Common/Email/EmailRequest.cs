@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Librow.Application.Common.Email;
 public class EmailRequest
 {
-    public string ToEmail { get; set; }
+    public List<string> ToEmails { get; set; }
     public string Subject { get; set; }
     public string Body { get; set; }
     public string FileSource { get; set; }

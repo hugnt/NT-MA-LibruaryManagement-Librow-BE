@@ -35,5 +35,7 @@ public class AppDbContext : DbContext
     public DbSet<BookBorrowingRequestDetails> BookBorrowingRequestDetails { get; set; }
     public DbSet<BookRating> BookRatings { get; set; }
 
+    public DbSet<AuditLog> AuditLogs { get; set; }
+
 
 }

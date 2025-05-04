@@ -13,5 +13,6 @@ public interface IBookBorrowingRequestService
     public Task<Result> Add(BorrowingRequest newBookBorrowingRequest);
     public Task<Result> UpdateStatus(Guid id, UpdateStatusRequest updatedStatusRequest);
     public Task<Result> UpdateExtendedDueDate(Guid id, ExtendBorrowingRequest extendBorrowingRequest);
+    public Task CheckOverdueBooks();
     public Task<Result> UpdateBorrowingBookStatus(Guid id, UpdateBorrowingStatusRequest updateBorrowingStatus);
 }

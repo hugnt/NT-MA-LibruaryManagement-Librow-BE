@@ -1,0 +1,23 @@
+<div style="width: 100%; background-color: #F2F4F6; font-family: 'Nunito Sans', Helvetica, Arial, sans-serif; color: #51545E;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 570px; margin: auto; background-color: #FFFFFF; padding: 40px;">
+        <tr>
+            <td>
+                <h2 style="color: #333333;">Hello {{param_fullname}},</h2>
+                <p style="font-size: 16px; line-height: 1.6;">
+                    This is a reminder that your borrowed books are overdue. Please see the details below:
+                </p>
+
+                <!-- Loop books -->
+                <table width="100%" cellpadding="5" cellspacing="0" style="font-size: 16px; line-height: 1.6; padding-left: 20px; margin-top: 20px;">
+                    {{param_books_list}}
+                </table>
+
+                <p style="font-size: 16px; line-height: 1.6;">
+                    Kindly return the books as soon as possible to avoid further penalties.
+                </p>
+
+                <p style="margin-top: 30px; font-size: 16px;">Thank you,<br>The Library Team</p>
+            </td>
+        </tr>
+    </table>
+</div>

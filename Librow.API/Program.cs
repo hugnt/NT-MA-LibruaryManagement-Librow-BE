@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Librow.API.Middlewares;
 using Librow.API.Filters;
 using Librow.API.OpenApi;
+using Coravel;
+using Librow.Application.BackgroundJobs;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +28,12 @@ builder.Services.AddApplication(builder.Configuration);
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseMiddleware<JwtMiddleware>();
+
+//add backgroung jobs
+app.Services.UseScheduler(scheduler =>
+{
+    scheduler.Schedule<CheckOverdueBorrowedBooksJob>().DailyAtHour(8);
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
