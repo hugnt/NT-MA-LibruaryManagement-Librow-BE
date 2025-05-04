@@ -1,14 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
-using System.Reflection;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using Librow.Infrastructure.Extensions;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Linq.Expressions;
 
 namespace Librow.Infrastructure.Repositories.Base;
 public class Repository<T> : IRepository<T> where T : class
