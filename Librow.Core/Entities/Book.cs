@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 namespace Librow.Core.Entities;
 public class Book : Entity, IAuditableEntity, IConcurrencyEntity
 {
-    public Guid Id { get; set; }
     public string Title { get; set; }
     public Guid CategoryId { get; set; }
     public string Author { get; set; }
