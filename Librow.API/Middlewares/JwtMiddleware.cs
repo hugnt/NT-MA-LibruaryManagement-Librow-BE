@@ -13,10 +13,10 @@ public class JwtMiddleware
         _next = next;
     }
 
-    public async Task Invoke(HttpContext context)
+    public async Task Invoke(HttpContext context, ITokenService tokenService)
     {
         var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-        var validateAccessToken = TokenProvider.ValidateAccessToken(token);
+        var validateAccessToken = tokenService.ValidateAccessToken(token);
         if (validateAccessToken.IsSuccess && validateAccessToken.AttachData?.Claims != null)
         {
             var claims = validateAccessToken.AttachData.Claims;

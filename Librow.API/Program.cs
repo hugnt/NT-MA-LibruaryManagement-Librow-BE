@@ -1,11 +1,11 @@
-using Librow.Infrastructure;
-using Librow.Application;
-using Microsoft.EntityFrameworkCore;
-using Librow.API.Middlewares;
-using Librow.API.Filters;
-using Librow.API.OpenApi;
 using Coravel;
+using Librow.API.Filters;
+using Librow.API.Middlewares;
+using Librow.API.OpenApi;
+using Librow.Application;
 using Librow.Application.BackgroundJobs;
+using Librow.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 
 var builder = WebApplication.CreateBuilder(args);

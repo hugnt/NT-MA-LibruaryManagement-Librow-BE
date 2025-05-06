@@ -72,12 +72,5 @@ public class BookBorrowingRequestController : ApiControllerBase
         return ApiResponse(res);
     }
 
-    [RoleAuthorize(AuthRole.Admin)]
-    [HttpPatch("details/{id}/borrowing-status")]
-    public async Task<IActionResult> UpdateBorrowingBookStatus(Guid id, [FromBody] UpdateBorrowingStatusRequest updateBorrowingStatus)
-    {
-        var res = await _bookBorrowingRequestService.UpdateBorrowingBookStatus(id, updateBorrowingStatus);
-        return ApiResponse(res);
-    }
 
 }

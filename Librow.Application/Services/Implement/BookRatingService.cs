@@ -77,7 +77,7 @@ public class BookRatingService : IBookRatingService
 
         _bookRatingRepository.Add(bookRatingEntity);
         await _bookRatingRepository.SaveChangesAsync();
-        return Result.SuccessWithMessage(SuccessMessage.CreatedSuccessfully("Book"));
+        return Result.Success(HttpStatusCode.Created ,SuccessMessage.CreatedSuccessfully("Book"));
     }
 
 
@@ -97,7 +97,7 @@ public class BookRatingService : IBookRatingService
             && x.BookBorrowingRequestDetails.Any(y => y.BookId == bookId)
         );
 
-        return (isUserHasRequestWithBook, HttpStatusCode.OK, isUserHasRequestWithBook?"":ErrorMessage.UserHasNoPermission);
+        return (isUserHasRequestWithBook, isUserHasRequestWithBook? HttpStatusCode.OK : HttpStatusCode.Forbidden, isUserHasRequestWithBook?"":ErrorMessage.UserHasNoPermission);
     }
 
 }

@@ -1,8 +1,10 @@
 ﻿using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Librow.API.OpenApi;
 
+[ExcludeFromCodeCoverage]
 public static class SwaggerGenOptionsConfig
 {
     public static void ConfigureSwaggerGenOptions(SwaggerGenOptions options)

@@ -1,5 +1,4 @@
-﻿using FluentValidation;
-using Librow.Application.Common.Email;
+﻿using Librow.Application.Common.Email;
 using Librow.Application.Common.Messages;
 using Librow.Application.Common.Security.Token;
 using Librow.Application.Helpers;
@@ -11,12 +10,10 @@ using Librow.Core.Entities;
 using Librow.Core.Enums;
 using Librow.Infrastructure.Repositories;
 using Librow.Infrastructure.Repositories.Base;
-using Librow.Infrastructure.Repositories.Implement;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Net;
-using System.Net.Mail;
 
 namespace Librow.Application.Services.Implement;
 public class BookBorrowingRequestService : IBookBorrowingRequestService
@@ -33,7 +30,8 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
 
     public BookBorrowingRequestService(IRepository<Book> bookRepository, IHttpContextAccessor httpContextAccessor,
                                         IRepository<BookBorrowingRequestDetails> bookBorrowingRequestDetailsRepository,
-                                        IBookBorrowingRequestRepository bookBorrowingRequestRepository, IEmailService emailService, IRepository<User> userRepository)
+                                        IBookBorrowingRequestRepository bookBorrowingRequestRepository, 
+                                        IEmailService emailService, IRepository<User> userRepository)
     {
         _bookRepository = bookRepository;
         _httpContextAccessor = httpContextAccessor;
@@ -87,8 +85,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
 
     public async Task<Result> GetUserRequestInfo(RequestFilter requestFilter)
     {
-        var context = _httpContextAccessor.HttpContext;
-        var userId = ClaimHelper.GetClaimValue<Guid>(context, ClaimType.Id);
+        var userId = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
         var totalRequest = await _bookBorrowingRequestRepository.CountAsync(x => x.RequestorId == userId &&
                                                                              x.CreatedAt >= requestFilter.StartDate &&
                                                                              x.CreatedAt <= requestFilter.EndDate);
@@ -113,7 +110,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
     {
         if(newRequest.Details == null || newRequest.Details.Count == 0)
         {
-            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectCanNotBeNullOrEmpty("Request "));
+            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectCanNotBeNullOrEmpty("Request"));
         }
         var requestorId = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
         //check if reach limit (3) of request in month
@@ -192,7 +189,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
             return Result.Error(HttpStatusCode.InternalServerError, ErrorMessage.ServerError());
         }
       
-        return Result.SuccessWithMessage(SuccessMessage.CreatedSuccessfully("Borrowing request"));
+        return Result.Success(HttpStatusCode.Created, SuccessMessage.CreatedSuccessfully("Borrowing request"));
     }
 
     public async Task<Result> UpdateStatus(Guid id, UpdateStatusRequest updatedStatusRequest)
@@ -288,49 +285,13 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
         }
     }
 
-    public async Task<Result> UpdateBorrowingBookStatus(Guid id, UpdateBorrowingStatusRequest updateBorrowingStatus)
-    {
-        var selectedEntity = await _bookBorrowingRequestDetailsRepository.FirstOrDefaultAsync(x => x.Id == id);
-        if (selectedEntity == null)
-        {
-            return Result.Error(HttpStatusCode.NotFound, ErrorMessage.ObjectNotFound(id, "Borrowing Request "));
-        }
-        if(selectedEntity.Status == BorrowingStatus.Returned)
-        {
-            return Result.Error(HttpStatusCode.BadRequest, BorrowingRequestMessage.ErrorBookReturnCanNotUpdateToOtherStatus);
-        }
-
-        try
-        {
-            await _bookBorrowingRequestDetailsRepository.BeginTransactionAsync();
-            if (updateBorrowingStatus.Status == BorrowingStatus.Returned)
-            {
-                var selectedBookEntity = await _bookRepository.FirstOrDefaultAsync(x => x.Id == selectedEntity.BookId);
-                selectedBookEntity!.Available += 1;
-                _bookRepository.Update(selectedBookEntity);
-            }
-            selectedEntity.Status = updateBorrowingStatus.Status;
-
-            _bookBorrowingRequestDetailsRepository.Update(selectedEntity);
-            await _bookBorrowingRequestDetailsRepository.SaveChangesAsync();
-            await _bookBorrowingRequestDetailsRepository.CommitAsync();
-        }
-        catch (Exception)
-        {
-            await _bookBorrowingRequestDetailsRepository.RollbackAsync();
-            return Result.Error(HttpStatusCode.InternalServerError, ErrorMessage.ServerError());
-        }
-       
-        return Result.SuccessNoContent();
-    }
-    
     private async Task SendMailWithBorrowingStatus(BookBorrowingRequest request)
     {
         var user = await _userRepository.FirstOrDefaultAsync(x => x.Id == request.RequestorId);
         if (user == null) return;
         try
         {
-            var htmlEmail = await FileHelper.GetTemplateFile("NotificationOfStatusChanged.cshtml");
+            var htmlEmail = await _emailService.GetTemplateFile("NotificationOfStatusChanged.cshtml");
             htmlEmail = htmlEmail
                             .Replace("{{param_fullname}}", user.Fullname)
                             .Replace("{{param_status}}", EnumHelper.GetStatusName(request.Status))
@@ -375,7 +336,7 @@ public class BookBorrowingRequestService : IBookBorrowingRequestService
     {
         try
         {
-            var htmlEmail = await FileHelper.GetTemplateFile("NotificationOfOverdueBorrowing.cshtml");
+            var htmlEmail = await _emailService.GetTemplateFile("NotificationOfOverdueBorrowing.cshtml");
 
             var booksListHtml = string.Empty;
             foreach (var overdueBook in overdueRequest.OverdueBooks)

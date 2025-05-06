@@ -99,9 +99,9 @@ public class UserController : ApiControllerBase
 
     [RoleAuthorize(AuthRole.Admin)]
     [HttpGet("get-activity-logs")]
-    public async Task<IActionResult> GetActitviyLog([FromQuery] FilterRequest filter)
+    public async Task<IActionResult> GetActivityLog([FromQuery] FilterRequest filter)
     {
-        var res = await _userService.GetActitviyLog(filter);
+        var res = await _userService.GetActivityLog(filter);
         return ApiResponse(res);
     }
 }

@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Librow.Application.Models;
 using System.Net;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Librow.API.Filters;
 
+[ExcludeFromCodeCoverage]
 public class ValidateModelAttribute : Attribute, IAsyncResultFilter
 {
     public async Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)

@@ -22,7 +22,7 @@ public class BookService : IBookService
     private readonly IValidator<BookRequest> _bookValidator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public BookService(IValidator<BookRequest> validator, IRepository<Book> bookRepository, 
+    public BookService(IRepository<Book> bookRepository,IValidator<BookRequest> validator,
                         IRepository<BookCategory> bookCategoryRepository, IHttpContextAccessor httpContextAccessor, 
                         IRepository<BookBorrowingRequestDetails> bookBorrowingRequestDetailsRepository)
     {
@@ -87,7 +87,7 @@ public class BookService : IBookService
 
         _bookRepository.Add(bookEntity);
         await _bookRepository.SaveChangesAsync();
-        return Result.SuccessWithMessage(SuccessMessage.CreatedSuccessfully("Book"));
+        return Result.Success(HttpStatusCode.Created, SuccessMessage.CreatedSuccessfully("Book"));
     }
 
     public async Task<Result> Update(Guid id, BookRequest updatedBook)
@@ -139,10 +139,11 @@ public class BookService : IBookService
         }
         if(selectedEntity.Quantity != selectedEntity.Available)
         {
-            return Result.Error(HttpStatusCode.NotFound, BookMessage.BookExistedInOtherProcess);
+            return Result.Error(HttpStatusCode.BadRequest, BookMessage.BookExistedInOtherProcess);
         }
         if (await _bookBorrowingRequestDetailsRepository.AnyAsync(x => x.BookId == selectedEntity.Id))
         {
+            // when Quantity = Available but book was in a historical request
             selectedEntity.UpdatedAt = DateTime.Now;
             selectedEntity.UpdatedBy = ClaimHelper.GetClaimValue<Guid>(_httpContextAccessor.HttpContext, ClaimType.Id);
             selectedEntity.IsDeleted = true;

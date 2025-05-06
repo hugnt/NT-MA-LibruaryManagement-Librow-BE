@@ -4,10 +4,13 @@ using Librow.Application.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
+
 
 namespace Librow.API.Filters;
 
+[ExcludeFromCodeCoverage]
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public class RoleAuthorizeAttribute : Attribute, IAuthorizationFilter
 {

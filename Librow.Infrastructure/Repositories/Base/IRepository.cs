@@ -21,7 +21,6 @@ public interface IRepository<T>
     public Task<(IEnumerable<TResult> Data, int TotalCount)> GetByFilterAsync<TResult>(int? pageSize, int? pageNumber,
                                                                                         Expression<Func<T, TResult>> selectQuery,
                                                                                         Expression<Func<T, bool>>? predicate = null,
-                                                                                        List<(Expression<Func<TResult, object>> KeySelector, bool IsAsc)>? orderBy = null,
                                                                                         CancellationToken token = default,
                                                                                         params Expression<Func<T, object>>[] navigationProperties);
     public Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null,

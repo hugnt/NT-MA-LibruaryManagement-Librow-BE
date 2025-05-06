@@ -11,7 +11,7 @@ public class BorrowingRequestMessage
     public static string ErrorOverLimitedBook(int limitedNumber) => $"The number of books can not be over {limitedNumber}";
     public static string ErrorOverLimitedRequest(int limitedNumber) => $"Your number of book requests for this month has reached its limit ({limitedNumber}).";
 
-    public static string ErrorInvalidExpandedDueDate(DateTime date) => $"The extebded date must be higher than ({date.ToString("MM/dd/yyyy")}).";
+    public static string ErrorInvalidExpandedDueDate(DateTime date) => $"The extended date must be higher than ({date.ToString("MM/dd/yyyy")}).";
 
     public static string ErrorBookIsNotAvailable =  $"Some book is not availble or not existed!";
     public static string ErrorOverLimitedExpandedDate = $"Your number of book extended period requests has reached its limit !";

@@ -38,7 +38,6 @@ public class Repository<T> : IRepository<T> where T : class
     public virtual async Task<(IEnumerable<TResult> Data, int TotalCount)> GetByFilterAsync<TResult>(int? pageSize, int? pageNumber,
                                                                                                 Expression<Func<T, TResult>> selectQuery,
                                                                                                 Expression<Func<T, bool>>? predicate = null,
-                                                                                                List<(Expression<Func<TResult, object>> KeySelector, bool IsAsc)>? orderBy = null,
                                                                                                 CancellationToken token = default,
                                                                                                 params Expression<Func<T, object>>[] navigationProperties)
     {
@@ -46,25 +45,6 @@ public class Repository<T> : IRepository<T> where T : class
         var totalCount = await query.CountAsync(token);
 
         IQueryable<TResult> projectedQuery = query.Select(selectQuery);
-        if (orderBy != null && orderBy.Any())
-        {
-            IOrderedQueryable<TResult> orderedQuery = null!;
-            bool isFirst = true;
-
-            foreach (var (keySelector, isAsc) in orderBy)
-            {
-                if (isFirst)
-                {
-                    orderedQuery = isAsc ? projectedQuery.OrderBy(keySelector) : projectedQuery.OrderByDescending(keySelector);
-                    isFirst = false;
-                }
-                else
-                {
-                    orderedQuery = isAsc ? orderedQuery.ThenBy(keySelector) : orderedQuery.ThenByDescending(keySelector);
-                }
-            }
-            projectedQuery = orderedQuery;
-        }
 
         if (pageSize.HasValue && pageNumber.HasValue)
         {

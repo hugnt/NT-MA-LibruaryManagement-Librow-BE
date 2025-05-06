@@ -26,6 +26,7 @@ namespace Librow.Application.Services.Implement;
 public class UserService : IUserService
 {
     private readonly IRepository<User> _userRepository;
+    private readonly ITokenService _tokenService;
     private readonly IRepository<RefreshToken> _refreshTokenRepository;
     private readonly IValidator<RegisterRequest> _registerValidator;
     private readonly IRepository<AuditLog> _auditLogRepository;
@@ -33,10 +34,10 @@ public class UserService : IUserService
     private readonly IValidator<LoginRequest> _loginValidator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator, 
-                        IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository, 
-                        IHttpContextAccessor httpContextAccessor, IValidator<UserUpdateRequest> userUpdateValidator, 
-                        IRepository<AuditLog> auditLogRepository)
+    public UserService(IRepository<User> userRepository, IValidator<RegisterRequest> registerValidator,
+                        IValidator<LoginRequest> loginValidator, IRepository<RefreshToken> refreshTokenRepository,
+                        IHttpContextAccessor httpContextAccessor, IValidator<UserUpdateRequest> userUpdateValidator,
+                        IRepository<AuditLog> auditLogRepository, ITokenService tokenService)
     {
         _userRepository = userRepository;
         _registerValidator = registerValidator;
@@ -45,6 +46,7 @@ public class UserService : IUserService
         _httpContextAccessor = httpContextAccessor;
         _userUpdateValidator = userUpdateValidator;
         _auditLogRepository = auditLogRepository;
+        _tokenService = tokenService;
     }
 
 
@@ -67,7 +69,7 @@ public class UserService : IUserService
         }
 
         var claims = GetClaims(selectedAccount);
-        var token = TokenProvider.GenerateTokens(claims);
+        var token = _tokenService.GenerateTokens(claims);
         _refreshTokenRepository.Add(new RefreshToken()
         {
             JwtId = token.JwtId,
@@ -120,7 +122,7 @@ public class UserService : IUserService
         {
             return Result.Error(HttpStatusCode.Unauthorized, ErrorMessage.UserHasNoPermission);
         }
-        var validateAccessToken = TokenProvider.ValidateAccessToken(accessToken);
+        var validateAccessToken = _tokenService.ValidateAccessToken(accessToken);
         if (validateAccessToken.IsSuccess)
         {
             return Result<TokenResponse>.SuccessWithBody(new()
@@ -158,7 +160,7 @@ public class UserService : IUserService
             Role = role
         };
         var claims = GetClaims(userClaims);
-        var token = TokenProvider.GenerateTokens(claims);
+        var token = _tokenService.GenerateTokens(claims);
 
         //add new refesh token
         _refreshTokenRepository.Add(new RefreshToken()
@@ -277,7 +279,7 @@ public class UserService : IUserService
         await _userRepository.SaveChangesAsync();
 
         var claims = GetClaims(userEntity);
-        var token = TokenProvider.GenerateTokens(claims);
+        var token = _tokenService.GenerateTokens(claims);
 
         var loginResponse = new LoginResponse()
         {
@@ -333,7 +335,7 @@ public class UserService : IUserService
         return Result.SuccessNoContent();
     }
 
-    public async Task<Result> GetActitviyLog(FilterRequest filter)
+    public async Task<Result> GetActivityLog(FilterRequest filter)
     {
         var searchValue = filter?.SearchValue?.Trim();
         Expression<Func<AuditLog, bool>> predicate = x =>  string.IsNullOrEmpty(searchValue)

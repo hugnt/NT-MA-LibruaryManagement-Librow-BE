@@ -65,7 +65,7 @@ public class BookCategoryService : IBookCategoryService
 
         _bookCategoryRepository.Add(bookCategoryEntity);
         await _bookCategoryRepository.SaveChangesAsync();
-        return Result.SuccessWithMessage(SuccessMessage.CreatedSuccessfully("Book Category"));
+        return Result.Success(HttpStatusCode.Created,SuccessMessage.CreatedSuccessfully("Book Category"));
     }
 
     public async Task<Result> Update(Guid id, BookCategoryRequest updatedBookCategory)
@@ -80,6 +80,10 @@ public class BookCategoryService : IBookCategoryService
         if (!validateResult.IsValid)
         {
             return Result.ErrorValidation(validateResult);
+        }
+        if (await _bookCategoryRepository.AnyAsync(x => x.Id != id && x.Name == updatedBookCategory.Name.Trim()))
+        {
+            return Result.Error(HttpStatusCode.BadRequest, ErrorMessage.ObjectExisted(updatedBookCategory.Name, "Book Category"));
         }
 
         selectedEntity.MappingFieldFrom(updatedBookCategory);

@@ -17,13 +17,12 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         //Token & Authentication
-        TokenProvider.SetSecretKey(configuration["TokenSettings:SecretKey"]);
-        TokenProvider.SetAccessTokenExprirationTime(int.Parse(configuration["TokenSettings:AccessTokenExpirationInMinutes"] ??"-1"));
-        TokenProvider.SetRefreshTokenExprirationTime(int.Parse(configuration["TokenSettings:RefreshTokenExpirationInMinutes"] ?? "-1"));
+        services.Configure<TokenSettings>(configuration.GetSection("TokenSettings"));
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(opt =>
         {
             opt.TokenValidationParameters = TokenProvider.TokenValidationParameters;
         });
+        services.AddSingleton<ITokenService, TokenService>();
 
         //Email
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
