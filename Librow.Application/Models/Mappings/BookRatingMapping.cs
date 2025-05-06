@@ -25,5 +25,6 @@ public static class BookRatingMapping
         ReviewerName = x.Reviewer.Fullname,
         Comment = x.Comment,
         Rate = x.Rate,
+        CommentTime = x.UpdatedAt.ToString("MM/dd/yyyy HH:mm")
     };
 }

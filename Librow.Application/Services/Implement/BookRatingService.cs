@@ -50,7 +50,7 @@ public class BookRatingService : IBookRatingService
         var res = new BookRatingResponse()
         {
             AverageRating = reviews.Any() ? reviews.Average(x => x.Rate) : 0,
-            Reviews = reviews.ToList()
+            Reviews = reviews.OrderByDescending(x =>x.CommentTime).ToList()
         };
         return Result<BookRatingResponse>.SuccessWithBody(res);
     }

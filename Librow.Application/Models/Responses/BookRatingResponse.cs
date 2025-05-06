@@ -12,6 +12,7 @@ public class ReviewModel
     public string ReviewerName { get; set; }
     public string Comment { get; set; }
     public double Rate { get; set; }
+    public string CommentTime { get; set; }
 }
 public class BookRatingResponse
 {

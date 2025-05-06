@@ -110,7 +110,7 @@ public class Repository<T> : IRepository<T> where T : class
     {
         var entries = _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added ||
                                                             e.State == EntityState.Modified ||
-                                                            e.State == EntityState.Deleted);
+                                                            e.State == EntityState.Deleted).ToList();
 
 
         foreach (var entry in entries)
@@ -133,7 +133,10 @@ public class Repository<T> : IRepository<T> where T : class
                 if (updatedByProperty != null)
                 {
                     var updatedByValue = updatedByProperty.GetValue(entry.Entity);
-                    auditLog.UserId = updatedByValue as Guid?;
+                    if (updatedByValue is Guid guidValue && guidValue != Guid.Empty)
+                    {
+                        auditLog.UserId = guidValue;
+                    }
                 }
 
                 if (entry.State == EntityState.Modified)
